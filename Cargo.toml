@@ -1,0 +1,15 @@
+[package]
+name = "faststr"
+version = "0.1.0"
+authors = ["Volo Team <volo@cloudwego.io>"]
+edition = "2021"
+description = "Faststr is a string library that reduces the cost of clone."
+repository = "https://github.com/volo-rs/faststr"
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+keywords = ["string", "str", "volo"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+bytes = "1"
