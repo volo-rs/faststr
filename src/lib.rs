@@ -4,6 +4,7 @@ use std::{
     string::FromUtf8Error, sync::Arc,
 };
 
+#[derive(Clone)]
 pub struct FastStr(Repr);
 
 impl FastStr {
