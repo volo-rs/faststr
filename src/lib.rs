@@ -65,6 +65,10 @@ impl FastStr {
         Ok(Self::from_string(s))
     }
 
+    pub const fn from_static_str(s: &'static str) -> Self {
+        Self(Repr::StaticStr(s))
+    }
+
     #[inline(always)]
     pub fn as_str(&self) -> &str {
         self.0.as_str()
@@ -331,6 +335,7 @@ enum Repr {
     Bytes(Bytes),
     ArcStr(Arc<str>),
     ArcString(Arc<String>),
+    StaticStr(&'static str),
     Inline { len: u8, buf: [u8; INLINE_CAP] },
 }
 
@@ -374,6 +379,7 @@ impl Repr {
             Self::Bytes(bytes) => bytes.len(),
             Self::ArcStr(arc_str) => arc_str.len(),
             Self::ArcString(arc_string) => arc_string.len(),
+            Self::StaticStr(s) => s.len(),
             Self::Inline { len, .. } => *len as usize,
         }
     }
@@ -384,6 +390,7 @@ impl Repr {
             Self::Bytes(bytes) => bytes.is_empty(),
             Self::ArcStr(arc_str) => arc_str.is_empty(),
             Self::ArcString(arc_string) => arc_string.is_empty(),
+            Self::StaticStr(s) => s.is_empty(),
             Self::Inline { len, .. } => *len == 0,
         }
     }
@@ -395,6 +402,7 @@ impl Repr {
             Self::Bytes(bytes) => unsafe { std::str::from_utf8_unchecked(bytes) },
             Self::ArcStr(arc_str) => arc_str,
             Self::ArcString(arc_string) => arc_string,
+            Self::StaticStr(s) => s,
             Self::Inline { len, buf } => unsafe {
                 std::str::from_utf8_unchecked(&buf[..*len as usize])
             },
@@ -409,6 +417,7 @@ impl Repr {
             Self::ArcString(arc_string) => {
                 Arc::try_unwrap(arc_string).unwrap_or_else(|arc| (*arc).clone())
             }
+            Self::StaticStr(s) => s.to_string(),
             Self::Inline { len, buf } => unsafe {
                 String::from_utf8_unchecked(buf[..len as usize].to_vec())
             },
@@ -423,6 +432,7 @@ impl AsRef<[u8]> for Repr {
             Self::Bytes(bytes) => bytes.as_ref(),
             Self::ArcStr(arc_str) => arc_str.as_bytes(),
             Self::ArcString(arc_string) => arc_string.as_bytes(),
+            Self::StaticStr(s) => s.as_bytes(),
             Self::Inline { len, buf } => &buf[..*len as usize],
         }
     }
