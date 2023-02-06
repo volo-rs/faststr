@@ -1,13 +1,28 @@
 use bytes::{Bytes, BytesMut};
 use std::{
-    borrow::Borrow, cmp::Ordering, convert::Infallible, fmt, hash, iter, ops::Deref, str::FromStr,
-    string::FromUtf8Error, sync::Arc,
+    borrow::{Borrow, Cow},
+    cmp::Ordering,
+    convert::Infallible,
+    fmt, hash, iter,
+    ops::Deref,
+    str::{FromStr, Utf8Error},
+    string::FromUtf8Error,
+    sync::Arc,
 };
 
 #[derive(Clone)]
 pub struct FastStr(Repr);
 
 impl FastStr {
+    #[inline]
+    pub fn new<T>(text: T) -> Self
+    where
+        T: AsRef<str>,
+    {
+        Self(Repr::new(text))
+    }
+
+    #[inline]
     pub const fn new_inline(s: &str) -> Self {
         if s.len() > INLINE_CAP {
             panic!("[FastStr] string is too long to inline");
@@ -25,11 +40,8 @@ impl FastStr {
     }
 
     #[inline]
-    pub fn new<T>(text: T) -> Self
-    where
-        T: AsRef<str>,
-    {
-        Self(Repr::new(text))
+    pub fn from_arc_str(s: Arc<str>) -> Self {
+        Self(Repr::from_arc_str(s))
     }
 
     #[inline]
@@ -50,25 +62,60 @@ impl FastStr {
         Self(Repr::from_bytes_unchecked(b))
     }
 
-    /// # Safety
-    ///
-    /// `b` must be valid UTF-8
-    pub unsafe fn from_bytes_mut_unchecked(b: BytesMut) -> Self {
-        let v = b.into();
-        let s = unsafe { String::from_utf8_unchecked(v) };
-        Self::from_string(s)
-    }
-
+    #[inline]
     pub fn from_bytes_mut(b: BytesMut) -> Result<Self, FromUtf8Error> {
         let v = b.into();
         let s = String::from_utf8(v)?;
         Ok(Self::from_string(s))
     }
 
+    /// # Safety
+    ///
+    /// `b` must be valid UTF-8
+    #[inline]
+    pub unsafe fn from_bytes_mut_unchecked(b: BytesMut) -> Self {
+        let v = b.into();
+        let s = unsafe { String::from_utf8_unchecked(v) };
+        Self::from_string(s)
+    }
+
+    #[inline]
     pub const fn from_static_str(s: &'static str) -> Self {
         Self(Repr::StaticStr(s))
     }
 
+    #[inline]
+    pub fn from_vec_u8(v: Vec<u8>) -> Result<Self, FromUtf8Error> {
+        let s = String::from_utf8(v)?;
+        Ok(Self::from_string(s))
+    }
+
+    /// # Safety
+    ///
+    /// `v` must be valid UTF-8
+    #[inline]
+    pub unsafe fn from_vec_u8_unchecked(v: Vec<u8>) -> Self {
+        let s = unsafe { String::from_utf8_unchecked(v) };
+        Self::from_string(s)
+    }
+
+    #[inline]
+    pub fn from_u8_slice(v: &[u8]) -> Result<Self, Utf8Error> {
+        let s = std::str::from_utf8(v)?;
+        Ok(Self::new(s))
+    }
+
+    /// # Safety
+    ///
+    /// `v` must be valid UTF-8
+    #[inline]
+    pub unsafe fn from_u8_slice_unchecked(v: &[u8]) -> Self {
+        let s = unsafe { std::str::from_utf8_unchecked(v) };
+        Self::new(s)
+    }
+}
+
+impl FastStr {
     #[inline(always)]
     pub fn as_str(&self) -> &str {
         self.0.as_str()
@@ -120,7 +167,7 @@ impl FastStr {
 impl Default for FastStr {
     #[inline]
     fn default() -> Self {
-        Self::new("")
+        Self::new_inline("")
     }
 }
 
@@ -302,16 +349,6 @@ impl<'a> iter::FromIterator<&'a str> for FastStr {
     }
 }
 
-impl<T> From<T> for FastStr
-where
-    T: AsRef<str>,
-{
-    #[inline]
-    fn from(text: T) -> Self {
-        Self::new(text)
-    }
-}
-
 impl Borrow<str> for FastStr {
     #[inline]
     fn borrow(&self) -> &str {
@@ -324,7 +361,56 @@ impl FromStr for FastStr {
 
     #[inline]
     fn from_str(s: &str) -> Result<FastStr, Self::Err> {
-        Ok(FastStr::from(s))
+        Ok(FastStr::new(s))
+    }
+}
+
+// We need to wait for specilization to be stable to implement this.
+// impl<T> From<T> for FastStr
+// where
+//     T: AsRef<str>,
+// {
+//     #[inline]
+//     fn from(text: T) -> Self {
+//         Self::new(text)
+//     }
+// }
+
+impl From<Arc<str>> for FastStr {
+    #[inline]
+    fn from(val: Arc<str>) -> Self {
+        Self::from_arc_str(val)
+    }
+}
+
+impl From<String> for FastStr {
+    #[inline]
+    fn from(val: String) -> Self {
+        Self::from_string(val)
+    }
+}
+
+impl From<Arc<String>> for FastStr {
+    #[inline]
+    fn from(val: Arc<String>) -> Self {
+        Self::from_arc_string(val)
+    }
+}
+
+impl From<&'static str> for FastStr {
+    #[inline]
+    fn from(val: &'static str) -> Self {
+        Self::from_static_str(val)
+    }
+}
+
+impl From<Cow<'static, str>> for FastStr {
+    #[inline]
+    fn from(val: Cow<'static, str>) -> Self {
+        match val {
+            Cow::Borrowed(s) => Self::from_static_str(s),
+            Cow::Owned(s) => Self::from_string(s),
+        }
     }
 }
 
@@ -360,6 +446,11 @@ impl Repr {
         }
 
         Self::ArcStr(text.as_ref().into())
+    }
+
+    #[inline]
+    fn from_arc_str(s: Arc<str>) -> Self {
+        Self::ArcStr(s)
     }
 
     #[inline]
@@ -447,7 +538,7 @@ mod serde {
     use crate::FastStr;
 
     // https://github.com/serde-rs/serde/blob/629802f2abfd1a54a6072992888fea7ca5bc209f/serde/src/private/de.rs#L56-L125
-    fn smol_str<'de: 'a, 'a, D>(deserializer: D) -> Result<FastStr, D::Error>
+    fn fast_str<'de: 'a, 'a, D>(deserializer: D) -> Result<FastStr, D::Error>
     where
         D: Deserializer<'de>,
     {
@@ -464,14 +555,14 @@ mod serde {
             where
                 E: Error,
             {
-                Ok(FastStr::from(v))
+                Ok(FastStr::new(v))
             }
 
             fn visit_borrowed_str<E>(self, v: &'a str) -> Result<Self::Value, E>
             where
                 E: Error,
             {
-                Ok(FastStr::from(v))
+                Ok(FastStr::new(v))
             }
 
             fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
@@ -486,7 +577,7 @@ mod serde {
                 E: Error,
             {
                 match core::str::from_utf8(v) {
-                    Ok(s) => Ok(FastStr::from(s)),
+                    Ok(s) => Ok(FastStr::new(s)),
                     Err(_) => Err(Error::invalid_value(Unexpected::Bytes(v), &self)),
                 }
             }
@@ -496,7 +587,7 @@ mod serde {
                 E: Error,
             {
                 match core::str::from_utf8(v) {
-                    Ok(s) => Ok(FastStr::from(s)),
+                    Ok(s) => Ok(FastStr::new(s)),
                     Err(_) => Err(Error::invalid_value(Unexpected::Bytes(v), &self)),
                 }
             }
@@ -532,7 +623,7 @@ mod serde {
         where
             D: serde::Deserializer<'de>,
         {
-            smol_str(deserializer)
+            fast_str(deserializer)
         }
     }
 }
