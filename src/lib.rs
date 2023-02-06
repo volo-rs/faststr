@@ -74,9 +74,8 @@ impl FastStr {
     /// `b` must be valid UTF-8
     #[inline]
     pub unsafe fn from_bytes_mut_unchecked(b: BytesMut) -> Self {
-        let v = b.into();
-        let s = unsafe { String::from_utf8_unchecked(v) };
-        Self::from_string(s)
+        let v = b.freeze();
+        Self::from_bytes_unchecked(v)
     }
 
     #[inline]
