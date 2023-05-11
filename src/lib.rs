@@ -177,6 +177,13 @@ impl AsRef<[u8]> for FastStr {
     }
 }
 
+impl AsRef<str> for FastStr {
+    #[inline(always)]
+    fn as_ref(&self) -> &str {
+        self.as_str()
+    }
+}
+
 impl Deref for FastStr {
     type Target = str;
 
@@ -605,7 +612,7 @@ mod serde {
             }
         }
 
-        deserializer.deserialize_str(FastStrVisitor)
+        deserializer.deserialize_string(FastStrVisitor)
     }
 
     impl serde::Serialize for FastStr {

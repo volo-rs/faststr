@@ -28,6 +28,12 @@ See [CONTRIBUTING.md](https://github.com/volo-rs/faststr/blob/main/CONTRIBUTING.
 
 See [LICENSE-MIT](https://github.com/volo-rs/faststr/blob/main/LICENSE-MIT) and [LICENSE-APACHE](https://github.com/volo-rs/faststr/blob/main/LICENSE-APACHE) for details.
 
+## Credits
+
+`faststr` copied and used some code from [`smol_str`](https://github.com/rust-analyzer/smol_str), which is also licensed under the MIT license and the Apache License (Version 2.0).
+
+We really appreciate the work of `smol_str` team.
+
 ## Community
 
 - Email: [volo@cloudwego.io](mailto:volo@cloudwego.io)
