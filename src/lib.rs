@@ -13,6 +13,11 @@ use std::{
 #[derive(Clone)]
 pub struct FastStr(Repr);
 
+#[cfg(all(test, target_pointer_width = "64"))]
+mod size_asserts {
+    static_assertions::assert_eq_size!(super::FastStr, [u8; 40]); // 40 bytes
+}
+
 impl FastStr {
     #[inline]
     pub fn new<T>(text: T) -> Self
@@ -420,7 +425,7 @@ impl From<Cow<'static, str>> for FastStr {
     }
 }
 
-const INLINE_CAP: usize = 22;
+const INLINE_CAP: usize = 38;
 
 #[derive(Clone)]
 enum Repr {
