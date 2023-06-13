@@ -117,6 +117,11 @@ impl FastStr {
         let s = unsafe { std::str::from_utf8_unchecked(v) };
         Self::new(s)
     }
+
+    #[inline]
+    pub const fn empty() -> Self {
+        Self(Repr::empty())
+    }
 }
 
 impl FastStr {
@@ -171,7 +176,7 @@ impl FastStr {
 impl Default for FastStr {
     #[inline]
     fn default() -> Self {
-        Self::new_inline("")
+        Self::empty()
     }
 }
 
@@ -429,6 +434,7 @@ const INLINE_CAP: usize = 38;
 
 #[derive(Clone)]
 enum Repr {
+    Empty,
     Bytes(Bytes),
     ArcStr(Arc<str>),
     ArcString(Arc<String>),
@@ -442,6 +448,9 @@ impl Repr {
     where
         T: AsRef<str>,
     {
+        if text.as_ref().is_empty() {
+            return Self::Empty;
+        }
         {
             let text = text.as_ref();
 
@@ -457,6 +466,11 @@ impl Repr {
         }
 
         Self::ArcStr(text.as_ref().into())
+    }
+
+    #[inline]
+    const fn empty() -> Self {
+        Self::Empty
     }
 
     #[inline]
@@ -478,6 +492,7 @@ impl Repr {
     #[inline]
     fn len(&self) -> usize {
         match self {
+            Self::Empty => 0,
             Self::Bytes(bytes) => bytes.len(),
             Self::ArcStr(arc_str) => arc_str.len(),
             Self::ArcString(arc_string) => arc_string.len(),
@@ -489,6 +504,7 @@ impl Repr {
     #[inline]
     fn is_empty(&self) -> bool {
         match self {
+            Self::Empty => true,
             Self::Bytes(bytes) => bytes.is_empty(),
             Self::ArcStr(arc_str) => arc_str.is_empty(),
             Self::ArcString(arc_string) => arc_string.is_empty(),
@@ -500,6 +516,7 @@ impl Repr {
     #[inline]
     fn as_str(&self) -> &str {
         match self {
+            Self::Empty => "",
             // Safety: this is guaranteed by the user when creating the `FastStr`.
             Self::Bytes(bytes) => unsafe { std::str::from_utf8_unchecked(bytes) },
             Self::ArcStr(arc_str) => arc_str,
@@ -514,6 +531,7 @@ impl Repr {
     #[inline]
     fn into_string(self) -> String {
         match self {
+            Self::Empty => String::new(),
             Self::Bytes(bytes) => unsafe { String::from_utf8_unchecked(bytes.into()) },
             Self::ArcStr(arc_str) => arc_str.to_string(),
             Self::ArcString(arc_string) => {
@@ -531,6 +549,7 @@ impl AsRef<[u8]> for Repr {
     #[inline]
     fn as_ref(&self) -> &[u8] {
         match self {
+            Self::Empty => &[],
             Self::Bytes(bytes) => bytes.as_ref(),
             Self::ArcStr(arc_str) => arc_str.as_bytes(),
             Self::ArcString(arc_string) => arc_string.as_bytes(),
