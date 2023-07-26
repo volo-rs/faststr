@@ -562,8 +562,10 @@ impl Repr {
             Self::Empty => Bytes::new(),
             Self::Bytes(bytes) => bytes,
             Self::ArcStr(arc_str) => Bytes::from(arc_str.as_bytes().to_vec()),
-            Self::ArcString(arc_string) => Bytes::from(arc_string.as_bytes().to_vec()),
-            Self::StaticStr(s) => Bytes::from(s.to_string()),
+            Self::ArcString(arc_string) => {
+                Bytes::from(Arc::try_unwrap(arc_string).unwrap_or_else(|arc| (*arc).clone()))
+            }
+            Self::StaticStr(s) => Bytes::from_static(s.as_bytes()),
             Self::Inline { len, buf } => Bytes::from(buf[..len as usize].to_vec()),
         }
     }
