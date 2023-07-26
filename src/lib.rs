@@ -136,6 +136,11 @@ impl FastStr {
     }
 
     #[inline(always)]
+    pub fn into_bytes(self) -> Bytes {
+        self.0.into_bytes()
+    }
+
+    #[inline(always)]
     pub fn len(&self) -> usize {
         self.0.len()
     }
@@ -207,6 +212,13 @@ impl From<FastStr> for String {
     #[inline]
     fn from(val: FastStr) -> Self {
         val.into_string()
+    }
+}
+
+impl From<FastStr> for Bytes {
+    #[inline]
+    fn from(val: FastStr) -> Self {
+        val.into_bytes()
     }
 }
 
@@ -541,6 +553,18 @@ impl Repr {
             Self::Inline { len, buf } => unsafe {
                 String::from_utf8_unchecked(buf[..len as usize].to_vec())
             },
+        }
+    }
+
+    #[inline]
+    fn into_bytes(self) -> Bytes {
+        match self {
+            Self::Empty => Bytes::new(),
+            Self::Bytes(bytes) => bytes,
+            Self::ArcStr(arc_str) => Bytes::from(arc_str.as_bytes().to_vec()),
+            Self::ArcString(arc_string) => Bytes::from(arc_string.as_bytes().to_vec()),
+            Self::StaticStr(s) => Bytes::from(s.to_string()),
+            Self::Inline { len, buf } => Bytes::from(buf[..len as usize].to_vec()),
         }
     }
 }
