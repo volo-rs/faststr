@@ -151,8 +151,8 @@ impl FastStr {
     }
 
     #[inline(always)]
-    pub fn slice_ref(&self) -> Self {
-        Self(self.0.slice_ref(self.as_ref()))
+    pub fn slice_ref(&self, subset: &[u8]) -> Self {
+        Self(self.0.slice_ref(subset))
     }
 
     fn from_char_iter<I: iter::Iterator<Item = char>>(mut iter: I) -> Self {
