@@ -150,6 +150,11 @@ impl FastStr {
         self.0.is_empty()
     }
 
+    #[inline(always)]
+    pub fn slice_ref(&self) -> Self {
+        Self(self.0.slice_ref(self.as_ref()))
+    }
+
     fn from_char_iter<I: iter::Iterator<Item = char>>(mut iter: I) -> Self {
         let (min_size, _) = iter.size_hint();
         if min_size > INLINE_CAP {
@@ -567,6 +572,52 @@ impl Repr {
             }
             Self::StaticStr(s) => Bytes::from_static(s.as_bytes()),
             Self::Inline { len, buf } => Bytes::from(buf[..len as usize].to_vec()),
+        }
+    }
+
+    #[inline]
+    fn slice_ref(&self, subset: &[u8]) -> Self {
+        if subset.is_empty() {
+            return Self::Empty;
+        }
+        let bytes_p = self.as_ref().as_ptr() as usize;
+        let bytes_len = self.len();
+
+        let sub_p = subset.as_ptr() as usize;
+        let sub_len = subset.len();
+
+        assert!(
+            sub_p >= bytes_p,
+            "subset pointer ({:p}) is smaller than self pointer ({:p})",
+            subset.as_ptr(),
+            self.as_ref().as_ptr(),
+        );
+        assert!(
+            sub_p + sub_len <= bytes_p + bytes_len,
+            "subset is out of bounds: self = ({:p}, {}), subset = ({:p}, {})",
+            self.as_ref().as_ptr(),
+            bytes_len,
+            subset.as_ptr(),
+            sub_len,
+        );
+
+        let sub_offset = sub_p - bytes_p;
+        match self {
+            Repr::Empty => panic!("invalid slice ref, self is empty but subset is not"),
+            Repr::Bytes(b) => Self::Bytes(b.slice_ref(subset)),
+            Repr::ArcStr(s) => Self::ArcStr(Arc::from(&s[sub_offset..sub_offset + sub_len])),
+            Repr::ArcString(s) => Self::ArcStr(Arc::from(&s[sub_offset..sub_offset + sub_len])),
+            Repr::StaticStr(s) => Self::StaticStr(unsafe {
+                std::str::from_utf8_unchecked(&s.as_bytes()[sub_offset..sub_offset + sub_len])
+            }),
+            Repr::Inline { len: _, buf } => Self::Inline {
+                len: sub_len as u8,
+                buf: {
+                    let mut new_buf = [0; INLINE_CAP];
+                    new_buf[..sub_len].copy_from_slice(&buf[sub_offset..sub_offset + sub_len]);
+                    new_buf
+                },
+            },
         }
     }
 }
