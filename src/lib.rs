@@ -151,15 +151,25 @@ impl FastStr {
     }
 
     #[inline(always)]
-    pub fn slice_ref(&self, subset: &[u8]) -> Self {
-        Self(self.0.slice_ref(subset))
+    pub fn slice_ref(&self, subset: &str) -> Self {
+        Self(self.0.slice_ref(subset.as_bytes()))
+    }
+
+    /// Return the subset of the string starting at `start` and ending at `end`.
+    ///
+    /// # Safety
+    ///
+    /// The caller must guarantee that the string between `start` and `end` is valid utf-8.
+    #[inline(always)]
+    pub unsafe fn index(&self, start: usize, end: usize) -> Self {
+        Self(self.0.slice_ref(&self.as_bytes()[start..end]))
     }
 
     fn from_char_iter<I: iter::Iterator<Item = char>>(mut iter: I) -> Self {
         let (min_size, _) = iter.size_hint();
         if min_size > INLINE_CAP {
             let s: String = iter.collect();
-            return Self(Repr::from_arc_string(Arc::new(s)));
+            return Self(Repr::Bytes(Bytes::from(s)));
         }
         let mut len = 0;
         let mut buf = [0u8; INLINE_CAP];
@@ -168,10 +178,10 @@ impl FastStr {
             if size + len > INLINE_CAP {
                 let (min_remaining, _) = iter.size_hint();
                 let mut s = String::with_capacity(size + len + min_remaining);
-                s.push_str(core::str::from_utf8(&buf[..len]).unwrap());
+                s.push_str(unsafe { core::str::from_utf8_unchecked(&buf[..len]) });
                 s.push(ch);
                 s.extend(iter);
-                return Self(Repr::ArcStr(s.into_boxed_str().into()));
+                return Self(Repr::Bytes(Bytes::from(s)));
             }
             ch.encode_utf8(&mut buf[len..]);
             len += size;
@@ -347,10 +357,10 @@ where
         let size = slice.len();
         if size + len > INLINE_CAP {
             let mut s = String::with_capacity(size + len);
-            s.push_str(core::str::from_utf8(&buf[..len]).unwrap());
+            s.push_str(unsafe { core::str::from_utf8_unchecked(&buf[..len]) });
             s.push_str(slice);
             s.extend(iter);
-            return FastStr(Repr::from_arc_string(Arc::new(s)));
+            return FastStr(Repr::Bytes(Bytes::from(s)));
         }
         buf[len..][..size].copy_from_slice(slice.as_bytes());
         len += size;
@@ -482,7 +492,7 @@ impl Repr {
             }
         }
 
-        Self::ArcStr(text.as_ref().into())
+        Self::Bytes(Bytes::copy_from_slice(text.as_ref().as_bytes()))
     }
 
     #[inline]
@@ -605,8 +615,12 @@ impl Repr {
         match self {
             Repr::Empty => panic!("invalid slice ref, self is empty but subset is not"),
             Repr::Bytes(b) => Self::Bytes(b.slice_ref(subset)),
-            Repr::ArcStr(s) => Self::ArcStr(Arc::from(&s[sub_offset..sub_offset + sub_len])),
-            Repr::ArcString(s) => Self::ArcStr(Arc::from(&s[sub_offset..sub_offset + sub_len])),
+            Repr::ArcStr(s) => Self::Bytes(Bytes::copy_from_slice(
+                &s[sub_offset..sub_offset + sub_len].as_bytes(),
+            )),
+            Repr::ArcString(s) => Self::Bytes(Bytes::copy_from_slice(
+                &s[sub_offset..sub_offset + sub_len].as_bytes(),
+            )),
             Repr::StaticStr(s) => Self::StaticStr(unsafe {
                 std::str::from_utf8_unchecked(&s.as_bytes()[sub_offset..sub_offset + sub_len])
             }),
