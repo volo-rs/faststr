@@ -1,6 +1,6 @@
 [package]
 name = "faststr"
-version = "0.2.8"
+version = "0.2.9"
 authors = ["Volo Team <volo@cloudwego.io>"]
 edition = "2021"
 description = "Faststr is a string library that reduces the cost of clone."
@@ -14,10 +14,13 @@ keywords = ["string", "str", "volo"]
 [dependencies]
 bytes = "1"
 serde = { version = "1", optional = true, default_features = false }
+redis = { version = "0.23", optional = true, default_features = false }
+itoa = { version = "1", optional = true }
 
 [dev-dependencies]
-static_assertions = { version = "1.1.0" }
+static_assertions = { version = "1" }
 
 [features]
 default = ["std"]
 std = ["serde/std"]
+redis = ["dep:redis", "itoa"]
