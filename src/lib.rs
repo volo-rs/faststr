@@ -616,10 +616,10 @@ impl Repr {
             Repr::Empty => panic!("invalid slice ref, self is empty but subset is not"),
             Repr::Bytes(b) => Self::Bytes(b.slice_ref(subset)),
             Repr::ArcStr(s) => Self::Bytes(Bytes::copy_from_slice(
-                &s[sub_offset..sub_offset + sub_len].as_bytes(),
+                s[sub_offset..sub_offset + sub_len].as_bytes(),
             )),
             Repr::ArcString(s) => Self::Bytes(Bytes::copy_from_slice(
-                &s[sub_offset..sub_offset + sub_len].as_bytes(),
+                s[sub_offset..sub_offset + sub_len].as_bytes(),
             )),
             Repr::StaticStr(s) => Self::StaticStr(unsafe {
                 std::str::from_utf8_unchecked(&s.as_bytes()[sub_offset..sub_offset + sub_len])
