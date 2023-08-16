@@ -1,3 +1,5 @@
+#![cfg_attr(not(doctest), doc = include_str!("../README.md"))]
+
 use bytes::{Bytes, BytesMut};
 use std::{
     borrow::{Borrow, Cow},
@@ -10,6 +12,7 @@ use std::{
     sync::Arc,
 };
 
+/// `FastStr` is a string type that try to avoid the cost of clone.
 #[derive(Clone)]
 pub struct FastStr(Repr);
 
@@ -19,6 +22,10 @@ mod size_asserts {
 }
 
 impl FastStr {
+    /// Create a new `FastStr` from any type `T` that can be converted to a string slice
+    /// (e.g., `String`, `&str`, `Arc<String>`, `Arc<str>`).
+    ///
+    /// For small strings (up to 38 bytes), this avoids heap allocation, and copies on stack.
     #[inline]
     pub fn new<T>(text: T) -> Self
     where
@@ -27,6 +34,9 @@ impl FastStr {
         Self(Repr::new(text))
     }
 
+    /// Create a new inline `FastStr` (up to 38 bytes long) from a string slice `s`.
+    ///
+    /// This constructor panics if the length of `s` is greater than 38.
     #[inline]
     pub const fn new_inline(s: &str) -> Self {
         if s.len() > INLINE_CAP {
@@ -44,29 +54,37 @@ impl FastStr {
         })
     }
 
+    /// Create a new `FastStr` from an `Arc<str>`.
     #[inline]
     pub fn from_arc_str(s: Arc<str>) -> Self {
         Self(Repr::from_arc_str(s))
     }
 
+    /// Create a new `FastStr` from a `String`.
     #[inline]
     pub fn from_string(s: String) -> Self {
         Self::from_arc_string(Arc::new(s))
     }
 
+    /// Create a new `FastStr` from an `Arc<String>`.
     #[inline]
     pub fn from_arc_string(s: Arc<String>) -> Self {
         Self(Repr::from_arc_string(s))
     }
 
+    /// Create a new `FastStr` from a `Bytes` object. This is an unsafe method
+    /// because the caller must ensure that the bytes passed to it are valid UTF-8.
+    ///
     /// # Safety
     ///
-    /// `b` must be valid UTF-8
+    /// `b` must be valid UTF-8.
     #[inline]
     pub unsafe fn from_bytes_unchecked(b: Bytes) -> Self {
         Self(Repr::from_bytes_unchecked(b))
     }
 
+    /// Create a new `FastStr` from a `BytesMut` object, returning a
+    /// `Result<FastStr, FromUtf8Error>` if the bytes are not valid UTF-8.
     #[inline]
     pub fn from_bytes_mut(b: BytesMut) -> Result<Self, FromUtf8Error> {
         let v = b.into();
@@ -74,50 +92,65 @@ impl FastStr {
         Ok(Self::from_string(s))
     }
 
+    /// Create a new `FastStr` from a `BytesMut` object. This is an unsafe method
+    /// because the caller must ensure that the bytes passed to it are valid UTF-8.
+    ///
     /// # Safety
     ///
-    /// `b` must be valid UTF-8
+    /// `b` must be valid UTF-8.
     #[inline]
     pub unsafe fn from_bytes_mut_unchecked(b: BytesMut) -> Self {
         let v = b.freeze();
         Self::from_bytes_unchecked(v)
     }
 
+    /// Create a new `FastStr` from a static string slice.
     #[inline]
     pub const fn from_static_str(s: &'static str) -> Self {
         Self(Repr::StaticStr(s))
     }
 
+    /// Create a new `FastStr` from a `Vec<u8>`, returning a
+    /// `Result<FastStr, FromUtf8Error>` if the bytes are not valid UTF-8.
     #[inline]
     pub fn from_vec_u8(v: Vec<u8>) -> Result<Self, FromUtf8Error> {
         let s = String::from_utf8(v)?;
         Ok(Self::from_string(s))
     }
 
+    /// Create a new `FastStr` from a `Vec<u8>`. This is an unsafe method because
+    /// the caller must ensure that the bytes passed to it are valid UTF-8.
+    ///
     /// # Safety
     ///
-    /// `v` must be valid UTF-8
+    /// `v` must be valid UTF-8.
     #[inline]
     pub unsafe fn from_vec_u8_unchecked(v: Vec<u8>) -> Self {
         let s = unsafe { String::from_utf8_unchecked(v) };
         Self::from_string(s)
     }
 
+    /// Create a new `FastStr` from a byte slice `v`, returning a
+    /// `Result<FastStr, Utf8Error>` if the bytes are not valid UTF-8.
     #[inline]
     pub fn from_u8_slice(v: &[u8]) -> Result<Self, Utf8Error> {
         let s = std::str::from_utf8(v)?;
         Ok(Self::new(s))
     }
 
+    /// Create a new `FastStr` from a byte slice `v`. This is an unsafe method because
+    /// the caller must ensure that the bytes passed to it are valid UTF-8.
+    ///
     /// # Safety
     ///
-    /// `v` must be valid UTF-8
+    /// `v` must be valid UTF-8.
     #[inline]
     pub unsafe fn from_u8_slice_unchecked(v: &[u8]) -> Self {
         let s = unsafe { std::str::from_utf8_unchecked(v) };
         Self::new(s)
     }
 
+    /// Create an empty `FastStr`.
     #[inline]
     pub const fn empty() -> Self {
         Self(Repr::empty())
@@ -125,37 +158,43 @@ impl FastStr {
 }
 
 impl FastStr {
+    /// Return the `FastStr` as a string slice.
     #[inline(always)]
     pub fn as_str(&self) -> &str {
         self.0.as_str()
     }
 
+    /// Consumes and converts the `FastStr` into a `String`.
     #[inline(always)]
     pub fn into_string(self) -> String {
         self.0.into_string()
     }
 
+    /// Consumes and converts the `FastStr` into a `Bytes` object.
     #[inline(always)]
     pub fn into_bytes(self) -> Bytes {
         self.0.into_bytes()
     }
 
+    /// Return the `FastStr` length.
     #[inline(always)]
     pub fn len(&self) -> usize {
         self.0.len()
     }
 
+    /// Return `true` if the `FastStr` is empty.
     #[inline(always)]
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
 
+    /// Return a new `FastStr` that represents a subset of the current string.
     #[inline(always)]
     pub fn slice_ref(&self, subset: &str) -> Self {
         Self(self.0.slice_ref(subset.as_bytes()))
     }
 
-    /// Return the subset of the string starting at `start` and ending at `end`.
+    /// Return a new `FastStr` starting at index `start` and ending at index `end`. `[start..end)`
     ///
     /// # Safety
     ///

@@ -11,6 +11,23 @@
 
 `faststr` is a string library that try to avoid the cost of clone.
 
+## Why we need it?
+
+In Rust, the String type is commonly used, but it has the following problems:
+
+1. In many scenarios in asynchronous Rust, we cannot determine when a String is dropped. For example, when we send a String through RPC/HTTP, we cannot explicitly mark the lifetime, thus we must clone it;
+2. Rust's asynchronous ecosystem is mainly based on Tokio, with network programming largely relying on bytes::Bytes. We can take advantage of Bytes to avoid cloning Strings, while better integrating with the Bytes ecosystem;
+3. Even in purely synchronous code, when the code is complex enough, marking the lifetime can greatly affect code readability and maintainability. In business development experience, there will often be multiple Strings from different sources combined into a single Struct for processing. In such situations, it's almost impossible to avoid cloning using lifetimes;
+4. Cloning a String is quite costly;
+
+Therefore, we have created the `FastStr` type. By sacrificing immutability, we can avoid the overhead of cloning Strings and better integrate with Rust's asynchronous, microservice, and network programming ecosystems.
+
+## When should I use it?
+
+1. When you need to send a String through RPC/HTTP;
+2. When you read a String from a file or database or config;
+3. Everywhere when you don't need to mutate the String anymore;
+
 ## Related Projects
 
 - [Volo][Volo]: Rust RPC framework with high-performance and strong-extensibility for building micro-services.
@@ -21,6 +38,8 @@
 ## Contributing
 
 See [CONTRIBUTING.md](https://github.com/volo-rs/faststr/blob/main/CONTRIBUTING.md) for more information.
+
+All contributions are welcomed!
 
 ## License
 
