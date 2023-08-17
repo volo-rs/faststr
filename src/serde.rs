@@ -1,6 +1,8 @@
 use core::fmt;
 
-use serde::de::{Deserializer, Error, Unexpected, Visitor};
+#[cfg(not(feature = "serde-unsafe"))]
+use serde::de::Unexpected;
+use serde::de::{Deserializer, Error, Visitor};
 
 use crate::FastStr;
 
@@ -43,8 +45,13 @@ where
         where
             E: Error,
         {
-            match core::str::from_utf8(v) {
-                Ok(s) => Ok(FastStr::new(s)),
+            #[cfg(feature = "serde-unsafe")]
+            {
+                Ok(unsafe { FastStr::from_u8_slice_unchecked(v) })
+            }
+            #[cfg(not(feature = "serde-unsafe"))]
+            match FastStr::from_u8_slice(v) {
+                Ok(s) => Ok(s),
                 Err(_) => Err(Error::invalid_value(Unexpected::Bytes(v), &self)),
             }
         }
@@ -53,8 +60,13 @@ where
         where
             E: Error,
         {
-            match core::str::from_utf8(v) {
-                Ok(s) => Ok(FastStr::new(s)),
+            #[cfg(feature = "serde-unsafe")]
+            {
+                Ok(unsafe { FastStr::from_u8_slice_unchecked(v) })
+            }
+            #[cfg(not(feature = "serde-unsafe"))]
+            match FastStr::from_u8_slice(v) {
+                Ok(s) => Ok(s),
                 Err(_) => Err(Error::invalid_value(Unexpected::Bytes(v), &self)),
             }
         }
@@ -63,8 +75,13 @@ where
         where
             E: Error,
         {
-            match String::from_utf8(v) {
-                Ok(s) => Ok(FastStr::from(s)),
+            #[cfg(feature = "serde-unsafe")]
+            {
+                Ok(unsafe { FastStr::from_vec_u8_unchecked(v) })
+            }
+            #[cfg(not(feature = "serde-unsafe"))]
+            match FastStr::from_vec_u8(v) {
+                Ok(s) => Ok(s),
                 Err(e) => Err(Error::invalid_value(
                     Unexpected::Bytes(&e.into_bytes()),
                     &self,

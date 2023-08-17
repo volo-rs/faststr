@@ -28,6 +28,31 @@ Therefore, we have created the `FastStr` type. By sacrificing immutability, we c
 2. When you read a String from a file or database or config;
 3. Everywhere when you don't need to mutate the String anymore;
 
+## How to migrate to `FastStr`?
+
+`FastStr` implements `From` trait for various types, so you can easily migrate to `FastStr` by replacing `String` with `FastStr` and adding `.into()`.
+
+For example, if your API is something like this:
+
+```rust
+fn need_a_string(s: String)
+```
+
+You may change it to:
+
+```rust
+fn need_a_string<S: Into<FastStr>>(s: S)
+```
+
+This will not be a break change for users.
+
+## Features
+
+- `serde`: Enable serde support.
+- `serde-unsafe`: Enable serde support with utf8 validation disabled.
+- `redis`: Enable redis support.
+- `redis-unsafe`: Enable redis support with utf8 validation disabled.
+
 ## Related Projects
 
 - [Volo][Volo]: Rust RPC framework with high-performance and strong-extensibility for building micro-services.

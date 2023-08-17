@@ -10,9 +10,12 @@ impl redis::ToRedisArgs for crate::FastStr {
 impl redis::FromRedisValue for crate::FastStr {
     fn from_redis_value(v: &redis::Value) -> redis::RedisResult<Self> {
         match v {
+            #[cfg(feature = "redis-unsafe")]
             redis::Value::Data(bytes) => {
                 Ok(unsafe { Self::new(std::str::from_utf8_unchecked(bytes)) })
             }
+            #[cfg(not(feature = "redis-unsafe"))]
+            redis::Value::Data(bytes) => Ok(Self::new(std::str::from_utf8(bytes)?)),
             redis::Value::Nil => Ok(Self::empty()),
             redis::Value::Int(v) => Ok(Self::new(itoa::Buffer::new().format(*v))),
             redis::Value::Status(s) => Ok(Self::new(s)),
@@ -24,8 +27,19 @@ impl redis::FromRedisValue for crate::FastStr {
         }
     }
 
-    fn from_byte_vec(_vec: &[u8]) -> Option<Vec<Self>> {
-        let s = unsafe { Self::from_u8_slice_unchecked(_vec) };
-        Some(vec![s])
+    fn from_byte_vec(vec: &[u8]) -> Option<Vec<Self>> {
+        #[cfg(feature = "redis-unsafe")]
+        {
+            let s = unsafe { Self::from_u8_slice_unchecked(vec) };
+            Some(vec![s])
+        }
+        #[cfg(not(feature = "redis-unsafe"))]
+        {
+            let s = Self::from_u8_slice(vec);
+            if s.is_err() {
+                return None;
+            }
+            Some(vec![s.unwrap()])
+        }
     }
 }
