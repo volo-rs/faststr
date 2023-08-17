@@ -17,9 +17,6 @@ serde = { version = "1", optional = true, default_features = false }
 redis = { version = "0.23", optional = true, default_features = false }
 itoa = { version = "1", optional = true }
 
-[dev-dependencies]
-static_assertions = { version = "1" }
-
 [features]
 default = ["std"]
 std = ["serde/std"]
@@ -27,3 +24,17 @@ serde = ["dep:serde"]
 serde-unsafe = ["serde"]
 redis = ["dep:redis", "itoa"]
 redis-unsafe = ["redis"]
+
+
+[dev-dependencies]
+static_assertions = { version = "1" }
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "faststr"
+harness = false
+
+[profile.bench]
+debug = true
+lto = true
+opt-level = 3
