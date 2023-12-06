@@ -59,7 +59,9 @@ This will not be a break change for users.
 $ cargo bench
 ```
 
-### M1Max
+### AARCH64
+
+#### M1Max
 
 ```
 empty faststr           time:   [19.315 ns 19.345 ns 19.377 ns]
@@ -95,6 +97,44 @@ string hello world      time:   [17.215 ns 17.239 ns 17.263 ns]
 1048576B faststr        time:   [23.968 ns 24.032 ns 24.094 ns]
 
 1048576B string         time:   [18.424 µs 18.534 µs 18.646 µs]
+```
+
+#### M3Max
+
+```
+empty faststr           time:   [16.178 ns 16.189 ns 16.201 ns]
+
+empty string            time:   [2.1306 ns 2.1333 ns 2.1365 ns]
+
+static faststr          time:   [16.310 ns 16.325 ns 16.341 ns]
+
+inline faststr          time:   [17.024 ns 17.040 ns 17.056 ns]
+
+string hello world      time:   [12.553 ns 12.575 ns 12.597 ns]
+
+512B faststr            time:   [16.771 ns 16.790 ns 16.810 ns]
+
+512B string             time:   [36.895 ns 37.007 ns 37.121 ns]
+
+4096B faststr           time:   [16.785 ns 16.811 ns 16.840 ns]
+
+4096B string            time:   [55.275 ns 55.355 ns 55.446 ns]
+
+16384B faststr          time:   [16.796 ns 16.819 ns 16.843 ns]
+
+16384B string           time:   [338.18 ns 352.36 ns 365.02 ns]
+
+65536B faststr          time:   [16.968 ns 17.011 ns 17.062 ns]
+
+65536B string           time:   [662.52 ns 663.75 ns 664.96 ns]
+
+524288B faststr         time:   [16.806 ns 16.834 ns 16.868 ns]
+
+524288B string          time:   [6.2681 µs 6.2755 µs 6.2827 µs]
+
+1048576B faststr        time:   [16.823 ns 16.849 ns 16.880 ns]
+
+1048576B string         time:   [12.422 µs 12.438 µs 12.453 µs]
 ```
 
 ### AMD EPYC 7Y83
