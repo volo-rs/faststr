@@ -555,7 +555,7 @@ impl Repr {
             Self::ArcStr(arc_str) => arc_str.len(),
             Self::ArcString(arc_string) => arc_string.len(),
             Self::StaticStr(s) => s.len(),
-            Self::Inline { len, .. } => *len as usize,
+            Self::Inline { len, .. } => *len,
         }
     }
 
@@ -581,7 +581,7 @@ impl Repr {
             Self::ArcString(arc_string) => arc_string,
             Self::StaticStr(s) => s,
             Self::Inline { len, buf } => unsafe {
-                std::str::from_utf8_unchecked(&buf[..*len as usize])
+                std::str::from_utf8_unchecked(&buf[..*len])
             },
         }
     }
@@ -597,7 +597,7 @@ impl Repr {
             }
             Self::StaticStr(s) => s.to_string(),
             Self::Inline { len, buf } => unsafe {
-                String::from_utf8_unchecked(buf[..len as usize].to_vec())
+                String::from_utf8_unchecked(buf[..len].to_vec())
             },
         }
     }
@@ -612,7 +612,7 @@ impl Repr {
                 Bytes::from(Arc::try_unwrap(arc_string).unwrap_or_else(|arc| (*arc).clone()))
             }
             Self::StaticStr(s) => Bytes::from_static(s.as_bytes()),
-            Self::Inline { len, buf } => Bytes::from(buf[..len as usize].to_vec()),
+            Self::Inline { len, buf } => Bytes::from(buf[..len].to_vec()),
         }
     }
 
@@ -676,7 +676,7 @@ impl AsRef<[u8]> for Repr {
             Self::ArcStr(arc_str) => arc_str.as_bytes(),
             Self::ArcString(arc_string) => arc_string.as_bytes(),
             Self::StaticStr(s) => s.as_bytes(),
-            Self::Inline { len, buf } => &buf[..*len as usize],
+            Self::Inline { len, buf } => &buf[..*len],
         }
     }
 }
