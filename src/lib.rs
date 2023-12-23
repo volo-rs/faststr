@@ -34,10 +34,14 @@ impl FastStr {
         Self(Repr::new(text))
     }
 
-    /// Create a new inline `FastStr` (up to 38 bytes long) from a string slice `s`.
+    /// Create a new inline `FastStr` (up to 2 bytes long) from a string slice `s`.
     ///
-    /// This constructor panics if the length of `s` is greater than 38.
+    /// This constructor panics if the length of `s` is greater than 22.
+    ///
+    /// Note: the inline length is not guaranteed.
     #[inline]
+    #[doc(hidden)]
+    #[deprecated(since = "0.2.13", note = "Please use `FastStr::new()` instead.")]
     pub const fn new_inline(s: &str) -> Self {
         if s.len() > INLINE_CAP {
             panic!("[FastStr] string is too long to inline");
@@ -48,10 +52,11 @@ impl FastStr {
             buf[i] = s.as_bytes()[i];
             i += 1
         }
-        Self(Repr::Inline {
+        Self(Repr::Inline(Inline {
+            _pad: 0,
             len: s.len() as u8,
             buf,
-        })
+        }))
     }
 
     /// Create a new `FastStr` from an `Arc<str>`.
@@ -225,10 +230,11 @@ impl FastStr {
             ch.encode_utf8(&mut buf[len..]);
             len += size;
         }
-        Self(Repr::Inline {
+        Self(Repr::Inline(Inline {
+            _pad: 0,
             len: len as u8,
             buf,
-        })
+        }))
     }
 }
 
@@ -404,10 +410,11 @@ where
         buf[len..][..size].copy_from_slice(slice.as_bytes());
         len += size;
     }
-    FastStr(Repr::Inline {
+    FastStr(Repr::Inline(Inline {
+        _pad: 0,
         len: len as u8,
         buf,
-    })
+    }))
 }
 
 impl iter::FromIterator<String> for FastStr {
@@ -496,7 +503,7 @@ impl From<Cow<'static, str>> for FastStr {
     }
 }
 
-const INLINE_CAP: usize = 38;
+const INLINE_CAP: usize = 22;
 
 #[derive(Clone)]
 enum Repr {
@@ -505,7 +512,14 @@ enum Repr {
     ArcStr(Arc<str>),
     ArcString(Arc<String>),
     StaticStr(&'static str),
-    Inline { len: u8, buf: [u8; INLINE_CAP] },
+    Inline(Inline),
+}
+
+#[derive(Clone, Copy)]
+struct Inline {
+    _pad: u64,
+    len: u8,
+    buf: [u8; INLINE_CAP],
 }
 
 impl Repr {
@@ -524,10 +538,11 @@ impl Repr {
             if len <= INLINE_CAP {
                 let mut buf = [0; INLINE_CAP];
                 buf[..len].copy_from_slice(text.as_bytes());
-                return Self::Inline {
+                return Self::Inline(Inline {
+                    _pad: 0,
                     len: len as u8,
                     buf,
-                };
+                });
             }
         }
 
@@ -563,7 +578,7 @@ impl Repr {
             Self::ArcStr(arc_str) => arc_str.len(),
             Self::ArcString(arc_string) => arc_string.len(),
             Self::StaticStr(s) => s.len(),
-            Self::Inline { len, .. } => *len as usize,
+            Self::Inline(Inline { len, .. }) => *len as usize,
         }
     }
 
@@ -575,7 +590,7 @@ impl Repr {
             Self::ArcStr(arc_str) => arc_str.is_empty(),
             Self::ArcString(arc_string) => arc_string.is_empty(),
             Self::StaticStr(s) => s.is_empty(),
-            Self::Inline { len, .. } => *len == 0,
+            Self::Inline(Inline { len, .. }) => *len == 0,
         }
     }
 
@@ -588,7 +603,7 @@ impl Repr {
             Self::ArcStr(arc_str) => arc_str,
             Self::ArcString(arc_string) => arc_string,
             Self::StaticStr(s) => s,
-            Self::Inline { len, buf } => unsafe {
+            Self::Inline(Inline { len, buf, .. }) => unsafe {
                 std::str::from_utf8_unchecked(&buf[..*len as usize])
             },
         }
@@ -604,7 +619,7 @@ impl Repr {
                 Arc::try_unwrap(arc_string).unwrap_or_else(|arc| (*arc).clone())
             }
             Self::StaticStr(s) => s.to_string(),
-            Self::Inline { len, buf } => unsafe {
+            Self::Inline(Inline { len, buf, .. }) => unsafe {
                 String::from_utf8_unchecked(buf[..len as usize].to_vec())
             },
         }
@@ -620,7 +635,7 @@ impl Repr {
                 Bytes::from(Arc::try_unwrap(arc_string).unwrap_or_else(|arc| (*arc).clone()))
             }
             Self::StaticStr(s) => Bytes::from_static(s.as_bytes()),
-            Self::Inline { len, buf } => Bytes::from(buf[..len as usize].to_vec()),
+            Self::Inline(Inline { len, buf, .. }) => Bytes::from(buf[..len as usize].to_vec()),
         }
     }
 
@@ -663,14 +678,15 @@ impl Repr {
             Repr::StaticStr(s) => Self::StaticStr(unsafe {
                 std::str::from_utf8_unchecked(&s.as_bytes()[sub_offset..sub_offset + sub_len])
             }),
-            Repr::Inline { len: _, buf } => Self::Inline {
+            Repr::Inline(Inline { len: _, buf, .. }) => Self::Inline(Inline {
+                _pad: 0,
                 len: sub_len as u8,
                 buf: {
                     let mut new_buf = [0; INLINE_CAP];
                     new_buf[..sub_len].copy_from_slice(&buf[sub_offset..sub_offset + sub_len]);
                     new_buf
                 },
-            },
+            }),
         }
     }
 }
@@ -684,7 +700,7 @@ impl AsRef<[u8]> for Repr {
             Self::ArcStr(arc_str) => arc_str.as_bytes(),
             Self::ArcString(arc_string) => arc_string.as_bytes(),
             Self::StaticStr(s) => s.as_bytes(),
-            Self::Inline { len, buf } => &buf[..*len as usize],
+            Self::Inline(Inline { len, buf, .. }) => &buf[..*len as usize],
         }
     }
 }
