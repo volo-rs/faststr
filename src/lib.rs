@@ -538,7 +538,7 @@ impl From<Cow<'static, str>> for FastStr {
 const INLINE_CAP: usize = 30;
 
 #[derive(Clone)]
-#[repr(u64)]
+#[repr(usize)]
 enum Repr {
     Empty,
     Bytes(Bytes),
@@ -581,7 +581,7 @@ impl Repr {
     ///
     /// The length of `s` must be <= `INLINE_CAP`.
     unsafe fn new_inline_impl(s: &str) -> Self {
-        #[allow(invalid_value)]
+        #[allow(invalid_value, clippy::uninit_assumed_init)]
         let mut inl = Self::Inline {
             len: s.len() as u8,
             buf: MaybeUninit::uninit().assume_init(),
