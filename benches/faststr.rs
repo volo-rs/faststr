@@ -9,6 +9,7 @@ fn criterion_benchmark(c: &mut Criterion) {
 
     let s = FastStr::from("Hello, world!");
     c.bench_function("static faststr", |b| b.iter(|| black_box(s.clone())));
+    #[allow(deprecated)]
     let s = FastStr::new_inline("Hello, world!");
     c.bench_function("inline faststr", |b| b.iter(|| black_box(s.clone())));
     let s = String::from("Hello, world!");
