@@ -580,9 +580,7 @@ impl Repr {
             Self::ArcStr(arc_str) => arc_str,
             Self::ArcString(arc_string) => arc_string,
             Self::StaticStr(s) => s,
-            Self::Inline { len, buf } => unsafe {
-                std::str::from_utf8_unchecked(&buf[..*len])
-            },
+            Self::Inline { len, buf } => unsafe { std::str::from_utf8_unchecked(&buf[..*len]) },
         }
     }
 
