@@ -34,9 +34,9 @@ impl FastStr {
         Self(Repr::new(text))
     }
 
-    /// Create a new inline `FastStr` (up to 2 bytes long) from a string slice `s`.
+    /// Create a new inline `FastStr` (up to 24 bytes long) from a string slice `s`.
     ///
-    /// This constructor panics if the length of `s` is greater than 22.
+    /// This constructor panics if the length of `s` is greater than 24.
     ///
     /// Note: the inline length is not guaranteed.
     #[inline]
@@ -52,11 +52,7 @@ impl FastStr {
             buf[i] = s.as_bytes()[i];
             i += 1
         }
-        Self(Repr::Inline(Inline {
-            _pad: 0,
-            len: s.len() as u8,
-            buf,
-        }))
+        Self(Repr::Inline(Inline { len: s.len(), buf }))
     }
 
     /// Create a new `FastStr` from an `Arc<str>`.
@@ -230,11 +226,7 @@ impl FastStr {
             ch.encode_utf8(&mut buf[len..]);
             len += size;
         }
-        Self(Repr::Inline(Inline {
-            _pad: 0,
-            len: len as u8,
-            buf,
-        }))
+        Self(Repr::Inline(Inline { len, buf }))
     }
 }
 
@@ -410,11 +402,7 @@ where
         buf[len..][..size].copy_from_slice(slice.as_bytes());
         len += size;
     }
-    FastStr(Repr::Inline(Inline {
-        _pad: 0,
-        len: len as u8,
-        buf,
-    }))
+    FastStr(Repr::Inline(Inline { len, buf }))
 }
 
 impl iter::FromIterator<String> for FastStr {
@@ -503,7 +491,7 @@ impl From<Cow<'static, str>> for FastStr {
     }
 }
 
-const INLINE_CAP: usize = 22;
+const INLINE_CAP: usize = 24;
 
 #[derive(Clone)]
 enum Repr {
@@ -517,8 +505,7 @@ enum Repr {
 
 #[derive(Clone, Copy)]
 struct Inline {
-    _pad: u64,
-    len: u8,
+    len: usize,
     buf: [u8; INLINE_CAP],
 }
 
@@ -538,11 +525,7 @@ impl Repr {
             if len <= INLINE_CAP {
                 let mut buf = [0; INLINE_CAP];
                 buf[..len].copy_from_slice(text.as_bytes());
-                return Self::Inline(Inline {
-                    _pad: 0,
-                    len: len as u8,
-                    buf,
-                });
+                return Self::Inline(Inline { len, buf });
             }
         }
 
@@ -679,8 +662,7 @@ impl Repr {
                 std::str::from_utf8_unchecked(&s.as_bytes()[sub_offset..sub_offset + sub_len])
             }),
             Repr::Inline(Inline { len: _, buf, .. }) => Self::Inline(Inline {
-                _pad: 0,
-                len: sub_len as u8,
+                len: sub_len,
                 buf: {
                     let mut new_buf = [0; INLINE_CAP];
                     new_buf[..sub_len].copy_from_slice(&buf[sub_offset..sub_offset + sub_len]);
