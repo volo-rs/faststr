@@ -14,6 +14,7 @@ keywords = ["string", "str", "volo"]
 [dependencies]
 bytes = "1"
 serde = { version = "1", optional = true, default_features = false }
+simdutf8 = { version = "0.1", features = ["aarch64_neon"] }
 redis = { version = "0.24", optional = true, default_features = false }
 itoa = { version = "1", optional = true }
 
