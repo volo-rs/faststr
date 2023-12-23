@@ -30,12 +30,12 @@ impl redis::FromRedisValue for crate::FastStr {
     fn from_byte_vec(vec: &[u8]) -> Option<Vec<Self>> {
         #[cfg(feature = "redis-unsafe")]
         {
-            let s = unsafe { Self::from_u8_slice_unchecked(vec) };
+            let s = unsafe { Self::new_u8_slice_unchecked(vec) };
             Some(vec![s])
         }
         #[cfg(not(feature = "redis-unsafe"))]
         {
-            let s = Self::from_u8_slice(vec);
+            let s = Self::new_u8_slice(vec);
             if s.is_err() {
                 return None;
             }

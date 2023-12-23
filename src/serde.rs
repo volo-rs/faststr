@@ -47,10 +47,10 @@ where
         {
             #[cfg(feature = "serde-unsafe")]
             {
-                Ok(unsafe { FastStr::from_u8_slice_unchecked(v) })
+                Ok(unsafe { FastStr::new_u8_slice_unchecked(v) })
             }
             #[cfg(not(feature = "serde-unsafe"))]
-            match FastStr::from_u8_slice(v) {
+            match FastStr::new_u8_slice(v) {
                 Ok(s) => Ok(s),
                 Err(_) => Err(Error::invalid_value(Unexpected::Bytes(v), &self)),
             }
@@ -62,10 +62,10 @@ where
         {
             #[cfg(feature = "serde-unsafe")]
             {
-                Ok(unsafe { FastStr::from_u8_slice_unchecked(v) })
+                Ok(unsafe { FastStr::new_u8_slice_unchecked(v) })
             }
             #[cfg(not(feature = "serde-unsafe"))]
-            match FastStr::from_u8_slice(v) {
+            match FastStr::new_u8_slice(v) {
                 Ok(s) => Ok(s),
                 Err(_) => Err(Error::invalid_value(Unexpected::Bytes(v), &self)),
             }
@@ -80,13 +80,10 @@ where
                 Ok(unsafe { FastStr::from_vec_u8_unchecked(v) })
             }
             #[cfg(not(feature = "serde-unsafe"))]
-            match FastStr::from_vec_u8(v) {
-                Ok(s) => Ok(s),
-                Err(e) => Err(Error::invalid_value(
-                    Unexpected::Bytes(&e.into_bytes()),
-                    &self,
-                )),
-            }
+            simdutf8::basic::from_utf8(&v)
+                .map_err(|_| Error::invalid_value(Unexpected::Bytes(&v), &self))?;
+            // Safety: we have checked that v is valid utf-8
+            Ok(unsafe { FastStr::from_vec_u8_unchecked(v) })
         }
     }
 

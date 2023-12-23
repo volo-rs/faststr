@@ -1,3 +1,4 @@
+use bytes::Bytes;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use faststr::FastStr;
 
@@ -16,7 +17,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("string hello world", |b| b.iter(|| black_box(s.clone())));
 
     for size in [512, 4 * 1024, 16 * 1024, 64 * 1024, 512 * 1024, 1024 * 1024] {
-        let s = FastStr::from("a".repeat(size));
+        let s = FastStr::from_bytes(Bytes::from("a".repeat(size)));
         let _s1 = black_box(s.clone());
         let _s2 = black_box(s.clone());
         c.bench_function(format!("{}B faststr", size).as_str(), |b| {

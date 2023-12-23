@@ -1,14 +1,17 @@
 #![cfg_attr(not(doctest), doc = include_str!("../README.md"))]
 
 use bytes::{Bytes, BytesMut};
+use simdutf8::basic::{from_utf8, Utf8Error};
 use std::{
     borrow::{Borrow, Cow},
     cmp::Ordering,
     convert::Infallible,
-    fmt, hash, iter,
+    fmt, hash,
+    hint::unreachable_unchecked,
+    iter,
+    mem::MaybeUninit,
     ops::Deref,
-    str::{FromStr, Utf8Error},
-    string::FromUtf8Error,
+    str::FromStr,
     sync::Arc,
 };
 
@@ -45,20 +48,34 @@ impl FastStr {
         since = "0.2.13",
         note = "The inline threshold is not stable. Please use `FastStr::new()` instead."
     )]
-    pub const fn new_inline(s: &str) -> Self {
-        if s.len() > INLINE_CAP {
-            panic!("[FastStr] string is too long to inline");
-        }
-        let mut buf = [0; INLINE_CAP];
-        let mut i = 0;
-        while i < s.len() {
-            buf[i] = s.as_bytes()[i];
-            i += 1
-        }
-        Self(Repr::Inline {
-            len: s.len() as u8,
-            buf,
-        })
+    pub fn new_inline(s: &str) -> Self {
+        Self(Repr::new_inline(s))
+    }
+
+    /// Create a new `FastStr` from a byte slice `v`, returning a
+    /// `Result<FastStr, Utf8Error>` if the bytes are not valid UTF-8.
+    #[inline]
+    pub fn new_u8_slice(v: &[u8]) -> Result<Self, Utf8Error> {
+        let s = from_utf8(v)?;
+        Ok(Self::new(s))
+    }
+
+    /// Create a new `FastStr` from a byte slice `v`. This is an unsafe method because
+    /// the caller must ensure that the bytes passed to it are valid UTF-8.
+    ///
+    /// # Safety
+    ///
+    /// `v` must be valid UTF-8.
+    #[inline]
+    pub unsafe fn new_u8_slice_unchecked(v: &[u8]) -> Self {
+        let s = unsafe { std::str::from_utf8_unchecked(v) };
+        Self::new(s)
+    }
+
+    /// Create an empty `FastStr`.
+    #[inline]
+    pub const fn empty() -> Self {
+        Self(Repr::empty())
     }
 
     /// Create a new `FastStr` from an `Arc<str>`.
@@ -70,13 +87,22 @@ impl FastStr {
     /// Create a new `FastStr` from a `String`.
     #[inline]
     pub fn from_string(s: String) -> Self {
-        Self::from_arc_string(Arc::new(s))
+        Self(Repr::from_string(s))
     }
 
     /// Create a new `FastStr` from an `Arc<String>`.
     #[inline]
     pub fn from_arc_string(s: Arc<String>) -> Self {
         Self(Repr::from_arc_string(s))
+    }
+
+    /// Create a new `FastStr` from a `BytesMut` object, returning a
+    /// `Result<FastStr, Utf8Error>` if the bytes are not valid UTF-8.
+    #[inline]
+    pub fn from_bytes(b: Bytes) -> Result<Self, Utf8Error> {
+        from_utf8(&b)?;
+        // Safety: we have checked b is utf-8 valid
+        Ok(unsafe { Self::from_bytes_unchecked(b) })
     }
 
     /// Create a new `FastStr` from a `Bytes` object. This is an unsafe method
@@ -91,12 +117,12 @@ impl FastStr {
     }
 
     /// Create a new `FastStr` from a `BytesMut` object, returning a
-    /// `Result<FastStr, FromUtf8Error>` if the bytes are not valid UTF-8.
+    /// `Result<FastStr, Utf8Error>` if the bytes are not valid UTF-8.
     #[inline]
-    pub fn from_bytes_mut(b: BytesMut) -> Result<Self, FromUtf8Error> {
-        let v = b.into();
-        let s = String::from_utf8(v)?;
-        Ok(Self::from_string(s))
+    pub fn from_bytes_mut(b: BytesMut) -> Result<Self, Utf8Error> {
+        from_utf8(&b)?;
+        // Safety: we have checked b is utf-8 valid
+        Ok(unsafe { Self::from_bytes_mut_unchecked(b) })
     }
 
     /// Create a new `FastStr` from a `BytesMut` object. This is an unsafe method
@@ -118,11 +144,12 @@ impl FastStr {
     }
 
     /// Create a new `FastStr` from a `Vec<u8>`, returning a
-    /// `Result<FastStr, FromUtf8Error>` if the bytes are not valid UTF-8.
+    /// `Result<FastStr, Utf8Error>` if the bytes are not valid UTF-8.
     #[inline]
-    pub fn from_vec_u8(v: Vec<u8>) -> Result<Self, FromUtf8Error> {
-        let s = String::from_utf8(v)?;
-        Ok(Self::from_string(s))
+    pub fn from_vec_u8(v: Vec<u8>) -> Result<Self, Utf8Error> {
+        from_utf8(&v)?;
+        // Safety: we have checked b is utf-8 valid
+        Ok(unsafe { Self::from_vec_u8_unchecked(v) })
     }
 
     /// Create a new `FastStr` from a `Vec<u8>`. This is an unsafe method because
@@ -133,16 +160,18 @@ impl FastStr {
     /// `v` must be valid UTF-8.
     #[inline]
     pub unsafe fn from_vec_u8_unchecked(v: Vec<u8>) -> Self {
-        let s = unsafe { String::from_utf8_unchecked(v) };
-        Self::from_string(s)
+        Self::from_bytes_unchecked(v.into())
     }
 
     /// Create a new `FastStr` from a byte slice `v`, returning a
     /// `Result<FastStr, Utf8Error>` if the bytes are not valid UTF-8.
+    #[deprecated(
+        since = "0.2.13",
+        note = "This method is not really zero-cost. Use `new_u8_slice` instead."
+    )]
     #[inline]
     pub fn from_u8_slice(v: &[u8]) -> Result<Self, Utf8Error> {
-        let s = std::str::from_utf8(v)?;
-        Ok(Self::new(s))
+        Self::new_u8_slice(v)
     }
 
     /// Create a new `FastStr` from a byte slice `v`. This is an unsafe method because
@@ -151,16 +180,13 @@ impl FastStr {
     /// # Safety
     ///
     /// `v` must be valid UTF-8.
+    #[deprecated(
+        since = "0.2.13",
+        note = "This method is not really zero-cost. Use `new_u8_slice_unchecked` instead."
+    )]
     #[inline]
     pub unsafe fn from_u8_slice_unchecked(v: &[u8]) -> Self {
-        let s = unsafe { std::str::from_utf8_unchecked(v) };
-        Self::new(s)
-    }
-
-    /// Create an empty `FastStr`.
-    #[inline]
-    pub const fn empty() -> Self {
-        Self(Repr::empty())
+        Self::new_u8_slice_unchecked(v)
     }
 }
 
@@ -169,12 +195,6 @@ impl FastStr {
     #[inline(always)]
     pub fn as_str(&self) -> &str {
         self.0.as_str()
-    }
-
-    /// Consumes and converts the `FastStr` into a `String`.
-    #[inline(always)]
-    pub fn into_string(self) -> String {
-        self.0.into_string()
     }
 
     /// Consumes and converts the `FastStr` into a `Bytes` object.
@@ -209,6 +229,17 @@ impl FastStr {
     #[inline(always)]
     pub unsafe fn index(&self, start: usize, end: usize) -> Self {
         Self(self.0.slice_ref(&self.as_bytes()[start..end]))
+    }
+
+    /// Consumes and converts the `FastStr` into a `String` at best effort.
+    #[deprecated(
+        since = "0.2.13",
+        note = "This method does not really express the `into` semantic. Use `to_string` instead."
+    )]
+    #[inline(always)]
+    pub fn into_string(self) -> String {
+        #[allow(deprecated)]
+        self.0.into_string()
     }
 
     fn from_char_iter<I: iter::Iterator<Item = char>>(mut iter: I) -> Self {
@@ -272,6 +303,7 @@ impl Deref for FastStr {
 impl From<FastStr> for String {
     #[inline]
     fn from(val: FastStr) -> Self {
+        #[allow(deprecated)]
         val.into_string()
     }
 }
@@ -506,7 +538,7 @@ impl From<Cow<'static, str>> for FastStr {
 const INLINE_CAP: usize = 30;
 
 #[derive(Clone)]
-#[repr(u64)]
+#[repr(usize)]
 enum Repr {
     Empty,
     Bytes(Bytes),
@@ -522,24 +554,50 @@ impl Repr {
     where
         T: AsRef<str>,
     {
-        if text.as_ref().is_empty() {
+        let text = text.as_ref();
+        if text.is_empty() {
             return Self::Empty;
         }
         {
-            let text = text.as_ref();
-
             let len = text.len();
             if len <= INLINE_CAP {
-                let mut buf = [0; INLINE_CAP];
-                buf[..len].copy_from_slice(text.as_bytes());
-                return Self::Inline {
-                    len: len as u8,
-                    buf,
-                };
+                // Safety: we have checked the length of text <= `INLINE_CAP`.
+                return unsafe { Self::new_inline_impl(text) };
             }
         }
 
-        Self::Bytes(Bytes::copy_from_slice(text.as_ref().as_bytes()))
+        Self::Bytes(Bytes::copy_from_slice(text.as_bytes()))
+    }
+
+    fn new_inline(s: &str) -> Self {
+        if s.len() > INLINE_CAP {
+            panic!("[FastStr] string is too long to inline");
+        }
+        // Safety: we have checked the length of s <= `INLINE_CAP`.
+        unsafe { Self::new_inline_impl(s) }
+    }
+
+    /// # Safety
+    ///
+    /// The length of `s` must be <= `INLINE_CAP`.
+    unsafe fn new_inline_impl(s: &str) -> Self {
+        #[allow(invalid_value, clippy::uninit_assumed_init)]
+        let mut inl = Self::Inline {
+            len: s.len() as u8,
+            buf: MaybeUninit::uninit().assume_init(),
+        };
+        match inl {
+            Self::Inline {
+                ref mut len,
+                ref mut buf,
+            } => {
+                // We can't guarantee if it's nonoverlapping here, so we can only use std::ptr::copy.
+                std::ptr::copy(s.as_ptr(), buf.as_mut_ptr(), s.len());
+                *len = s.len() as u8;
+            }
+            _ => unreachable_unchecked(),
+        }
+        inl
     }
 
     #[inline]
@@ -553,8 +611,18 @@ impl Repr {
     }
 
     #[inline]
+    fn from_string(s: String) -> Self {
+        let v = s.into_bytes();
+        // Safety: s is a `String`, thus we can assume it's valid utf-8
+        unsafe { Self::from_bytes_unchecked(v.into()) }
+    }
+
+    #[inline]
     fn from_arc_string(s: Arc<String>) -> Self {
-        Self::ArcString(s)
+        match Arc::try_unwrap(s) {
+            Ok(s) => Self::from_string(s),
+            Err(s) => Self::ArcString(s),
+        }
     }
 
     /// Safety: the caller must guarantee that the bytes `v` are valid UTF-8.
@@ -603,6 +671,7 @@ impl Repr {
     }
 
     #[inline]
+    #[deprecated]
     fn into_string(self) -> String {
         match self {
             Self::Empty => String::new(),
