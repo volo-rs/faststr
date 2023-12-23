@@ -34,10 +34,17 @@ impl FastStr {
         Self(Repr::new(text))
     }
 
-    /// Create a new inline `FastStr` (up to 38 bytes long) from a string slice `s`.
+    /// Create a new inline `FastStr` (up to 30 bytes long) from a string slice `s`.
     ///
-    /// This constructor panics if the length of `s` is greater than 38.
+    /// This constructor panics if the length of `s` is greater than 30.
+    ///
+    /// Note: the inline length is not guaranteed.
     #[inline]
+    #[doc(hidden)]
+    #[deprecated(
+        since = "0.2.13",
+        note = "The inline threshold is not stable. Please use `FastStr::new()` instead."
+    )]
     pub const fn new_inline(s: &str) -> Self {
         if s.len() > INLINE_CAP {
             panic!("[FastStr] string is too long to inline");
@@ -496,9 +503,10 @@ impl From<Cow<'static, str>> for FastStr {
     }
 }
 
-const INLINE_CAP: usize = 38;
+const INLINE_CAP: usize = 30;
 
 #[derive(Clone)]
+#[repr(u64)]
 enum Repr {
     Empty,
     Bytes(Bytes),
