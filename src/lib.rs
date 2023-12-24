@@ -28,7 +28,7 @@ impl FastStr {
     /// Create a new `FastStr` from any type `T` that can be converted to a string slice
     /// (e.g., `String`, `&str`, `Arc<String>`, `Arc<str>`).
     ///
-    /// For small strings (up to 38 bytes), this avoids heap allocation, and copies on stack.
+    /// For small strings (up to 24 bytes), this avoids heap allocation, and copies on stack.
     #[inline]
     pub fn new<T>(text: T) -> Self
     where
@@ -37,9 +37,9 @@ impl FastStr {
         Self(Repr::new(text))
     }
 
-    /// Create a new inline `FastStr` (up to 30 bytes long) from a string slice `s`.
+    /// Create a new inline `FastStr` (up to 24 bytes long) from a string slice `s`.
     ///
-    /// This constructor panics if the length of `s` is greater than 30.
+    /// This constructor panics if the length of `s` is greater than 24.
     ///
     /// Note: the inline length is not guaranteed.
     #[inline]
