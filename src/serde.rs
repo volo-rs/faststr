@@ -75,10 +75,6 @@ where
         where
             E: Error,
         {
-            #[cfg(feature = "serde-unsafe")]
-            {
-                Ok(unsafe { FastStr::from_vec_u8_unchecked(v) })
-            }
             #[cfg(not(feature = "serde-unsafe"))]
             simdutf8::basic::from_utf8(&v)
                 .map_err(|_| Error::invalid_value(Unexpected::Bytes(&v), &self))?;
