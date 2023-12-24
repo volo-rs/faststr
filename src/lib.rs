@@ -263,10 +263,7 @@ impl FastStr {
             ch.encode_utf8(&mut buf[len..]);
             len += size;
         }
-        Self(Repr::Inline {
-            len: len as u8,
-            buf,
-        })
+        Self(Repr::Inline { len, buf })
     }
 }
 
@@ -443,10 +440,7 @@ where
         buf[len..][..size].copy_from_slice(slice.as_bytes());
         len += size;
     }
-    FastStr(Repr::Inline {
-        len: len as u8,
-        buf,
-    })
+    FastStr(Repr::Inline { len, buf })
 }
 
 impl iter::FromIterator<String> for FastStr {
@@ -535,17 +529,16 @@ impl From<Cow<'static, str>> for FastStr {
     }
 }
 
-const INLINE_CAP: usize = 30;
+const INLINE_CAP: usize = 24;
 
 #[derive(Clone)]
-#[repr(usize)]
 enum Repr {
     Empty,
     Bytes(Bytes),
     ArcStr(Arc<str>),
     ArcString(Arc<String>),
     StaticStr(&'static str),
-    Inline { len: u8, buf: [u8; INLINE_CAP] },
+    Inline { len: usize, buf: [u8; INLINE_CAP] },
 }
 
 impl Repr {
@@ -583,7 +576,7 @@ impl Repr {
     unsafe fn new_inline_impl(s: &str) -> Self {
         #[allow(invalid_value, clippy::uninit_assumed_init)]
         let mut inl = Self::Inline {
-            len: s.len() as u8,
+            len: s.len(),
             buf: MaybeUninit::uninit().assume_init(),
         };
         match inl {
@@ -593,7 +586,7 @@ impl Repr {
             } => {
                 // We can't guarantee if it's nonoverlapping here, so we can only use std::ptr::copy.
                 std::ptr::copy(s.as_ptr(), buf.as_mut_ptr(), s.len());
-                *len = s.len() as u8;
+                *len = s.len();
             }
             _ => unreachable_unchecked(),
         }
@@ -639,7 +632,7 @@ impl Repr {
             Self::ArcStr(arc_str) => arc_str.len(),
             Self::ArcString(arc_string) => arc_string.len(),
             Self::StaticStr(s) => s.len(),
-            Self::Inline { len, .. } => *len as usize,
+            Self::Inline { len, .. } => *len,
         }
     }
 
@@ -664,9 +657,7 @@ impl Repr {
             Self::ArcStr(arc_str) => arc_str,
             Self::ArcString(arc_string) => arc_string,
             Self::StaticStr(s) => s,
-            Self::Inline { len, buf } => unsafe {
-                std::str::from_utf8_unchecked(&buf[..*len as usize])
-            },
+            Self::Inline { len, buf } => unsafe { std::str::from_utf8_unchecked(&buf[..*len]) },
         }
     }
 
@@ -682,7 +673,7 @@ impl Repr {
             }
             Self::StaticStr(s) => s.to_string(),
             Self::Inline { len, buf } => unsafe {
-                String::from_utf8_unchecked(buf[..len as usize].to_vec())
+                String::from_utf8_unchecked(buf[..len].to_vec())
             },
         }
     }
@@ -697,7 +688,7 @@ impl Repr {
                 Bytes::from(Arc::try_unwrap(arc_string).unwrap_or_else(|arc| (*arc).clone()))
             }
             Self::StaticStr(s) => Bytes::from_static(s.as_bytes()),
-            Self::Inline { len, buf } => Bytes::from(buf[..len as usize].to_vec()),
+            Self::Inline { len, buf } => Bytes::from(buf[..len].to_vec()),
         }
     }
 
@@ -741,7 +732,7 @@ impl Repr {
                 std::str::from_utf8_unchecked(&s.as_bytes()[sub_offset..sub_offset + sub_len])
             }),
             Repr::Inline { len: _, buf } => Self::Inline {
-                len: sub_len as u8,
+                len: sub_len,
                 buf: {
                     let mut new_buf = [0; INLINE_CAP];
                     new_buf[..sub_len].copy_from_slice(&buf[sub_offset..sub_offset + sub_len]);
@@ -761,7 +752,7 @@ impl AsRef<[u8]> for Repr {
             Self::ArcStr(arc_str) => arc_str.as_bytes(),
             Self::ArcString(arc_string) => arc_string.as_bytes(),
             Self::StaticStr(s) => s.as_bytes(),
-            Self::Inline { len, buf } => &buf[..*len as usize],
+            Self::Inline { len, buf } => &buf[..*len],
         }
     }
 }

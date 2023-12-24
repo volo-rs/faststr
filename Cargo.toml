@@ -1,6 +1,6 @@
 [package]
 name = "faststr"
-version = "0.2.14"
+version = "0.2.15"
 authors = ["Volo Team <volo@cloudwego.io>"]
 edition = "2021"
 description = "Faststr is a string library that reduces the cost of clone."
