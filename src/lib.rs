@@ -245,6 +245,8 @@ impl FastStr {
     /// If the inner repr of FastStr is a Bytes, then it will be deep cloned and returned as a new FastStr.
     /// Otherwise, it will return a new FastStr with the same repr which has no cost.
     ///
+    /// This is used to free the original memory of the Bytes.
+    ///
     /// This is not stable and may be removed or renamed in the future.
     #[inline]
     #[doc(hidden)]
