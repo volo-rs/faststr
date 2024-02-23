@@ -242,6 +242,16 @@ impl FastStr {
         self.0.into_string()
     }
 
+    /// If the inner repr of FastStr is a Bytes, then it will be deep cloned and returned as a new FastStr.
+    /// Otherwise, it will return a new FastStr with the same repr which has no cost.
+    ///
+    /// This is not stable and may be removed or renamed in the future.
+    #[inline]
+    #[doc(hidden)]
+    pub fn deep_clone_bytes(&self) -> Self {
+        Self(self.0.deep_clone_bytes())
+    }
+
     fn from_char_iter<I: iter::Iterator<Item = char>>(mut iter: I) -> Self {
         let (min_size, _) = iter.size_hint();
         if min_size > INLINE_CAP {
@@ -689,6 +699,22 @@ impl Repr {
             }
             Self::StaticStr(s) => Bytes::from_static(s.as_bytes()),
             Self::Inline { len, buf } => Bytes::from(buf[..len].to_vec()),
+        }
+    }
+
+    #[inline]
+    fn deep_clone_bytes(&self) -> Self {
+        match self {
+            Self::Empty => Self::Empty,
+            // Safety: this is guaranteed by the user when creating the `FastStr`.
+            Self::Bytes(bytes) => unsafe { Self::new(std::str::from_utf8_unchecked(bytes)) },
+            Self::ArcStr(arc_str) => Self::ArcStr(Arc::clone(arc_str)),
+            Self::ArcString(arc_string) => Self::ArcString(Arc::clone(arc_string)),
+            Self::StaticStr(s) => Self::StaticStr(s),
+            Self::Inline { len, buf } => Self::Inline {
+                len: *len,
+                buf: *buf,
+            },
         }
     }
 
