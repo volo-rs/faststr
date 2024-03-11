@@ -27,19 +27,21 @@ impl redis::FromRedisValue for crate::FastStr {
         }
     }
 
-    fn from_byte_vec(vec: &[u8]) -> Option<Vec<Self>> {
-        #[cfg(feature = "redis-unsafe")]
-        {
-            let s = unsafe { Self::new_u8_slice_unchecked(vec) };
-            Some(vec![s])
-        }
-        #[cfg(not(feature = "redis-unsafe"))]
-        {
-            let s = Self::new_u8_slice(vec);
-            if s.is_err() {
-                return None;
-            }
-            Some(vec![s.unwrap()])
+    fn from_owned_redis_value(v: redis::Value) -> redis::RedisResult<Self> {
+        match v {
+            #[cfg(feature = "redis-unsafe")]
+            redis::Value::Data(bytes) => Ok(unsafe { Self::from_vec_u8_unchecked(bytes) }),
+            #[cfg(not(feature = "redis-unsafe"))]
+            redis::Value::Data(bytes) => Self::from_vec_u8(bytes)
+                .map_err(|_| (redis::ErrorKind::TypeError, "Invalid UTF8").into()),
+            redis::Value::Nil => Ok(Self::empty()),
+            redis::Value::Int(v) => Ok(Self::new(itoa::Buffer::new().format(v))),
+            redis::Value::Status(s) => Ok(Self::from_string(s)),
+            redis::Value::Okay => Ok(Self::from_static_str("OK")),
+            _ => Err(redis::RedisError::from((
+                redis::ErrorKind::TypeError,
+                "Invalid response type",
+            ))),
         }
     }
 }
