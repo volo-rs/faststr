@@ -7,9 +7,7 @@ use std::{
     cmp::Ordering,
     convert::Infallible,
     fmt, hash,
-    hint::unreachable_unchecked,
     iter,
-    mem::MaybeUninit,
     ops::Deref,
     str::FromStr,
     sync::Arc,
@@ -586,23 +584,9 @@ impl Repr {
     ///
     /// The length of `s` must be <= `INLINE_CAP`.
     unsafe fn new_inline_impl(s: &str) -> Self {
-        #[allow(invalid_value, clippy::uninit_assumed_init)]
-        let mut inl = Self::Inline {
-            len: s.len(),
-            buf: MaybeUninit::uninit().assume_init(),
-        };
-        match inl {
-            Self::Inline {
-                ref mut len,
-                ref mut buf,
-            } => {
-                // We can't guarantee if it's nonoverlapping here, so we can only use std::ptr::copy.
-                std::ptr::copy(s.as_ptr(), buf.as_mut_ptr(), s.len());
-                *len = s.len();
-            }
-            _ => unreachable_unchecked(),
-        }
-        inl
+        let mut buf = [0u8; INLINE_CAP];
+        std::ptr::copy_nonoverlapping(s.as_ptr(), buf.as_mut_ptr(), s.len());
+        Self::Inline { len: s.len(), buf }
     }
 
     #[inline]
