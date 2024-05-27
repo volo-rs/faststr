@@ -13,9 +13,9 @@ keywords = ["string", "str", "volo"]
 
 [dependencies]
 bytes = "1"
-serde = { version = "1", optional = true, default_features = false }
+serde = { version = "1", optional = true, default-features = false }
 simdutf8 = { version = "0.1", features = ["aarch64_neon"] }
-redis = { version = "0.25", optional = true, default_features = false }
+redis = { version = "0.25", optional = true, default-features = false }
 itoa = { version = "1", optional = true }
 
 [features]
@@ -25,7 +25,6 @@ serde = ["dep:serde"]
 serde-unsafe = ["serde"]
 redis = ["dep:redis", "itoa"]
 redis-unsafe = ["redis"]
-
 
 [dev-dependencies]
 static_assertions = { version = "1" }
