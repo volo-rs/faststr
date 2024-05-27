@@ -78,18 +78,27 @@ impl FastStr {
     /// Create a new `FastStr` from an `Arc<str>`.
     #[inline]
     pub fn from_arc_str(s: Arc<str>) -> Self {
+        if Self::can_inline(&s) {
+            return Self::new(s);
+        }
         Self(Repr::from_arc_str(s))
     }
 
     /// Create a new `FastStr` from a `String`.
     #[inline]
     pub fn from_string(s: String) -> Self {
+        if Self::can_inline(&s) {
+            return Self::new(s);
+        }
         Self(Repr::from_string(s))
     }
 
     /// Create a new `FastStr` from an `Arc<String>`.
     #[inline]
     pub fn from_arc_string(s: Arc<String>) -> Self {
+        if Self::can_inline(&s) {
+            return Self::new(s.as_str());
+        }
         Self(Repr::from_arc_string(s))
     }
 
@@ -110,6 +119,10 @@ impl FastStr {
     /// `b` must be valid UTF-8.
     #[inline]
     pub unsafe fn from_bytes_unchecked(b: Bytes) -> Self {
+        let s = std::str::from_utf8_unchecked(&b);
+        if Self::can_inline(s) {
+            return Self::new(s);
+        }
         Self(Repr::from_bytes_unchecked(b))
     }
 
@@ -273,6 +286,10 @@ impl FastStr {
             len += size;
         }
         Self(Repr::Inline { len, buf })
+    }
+
+    fn can_inline(s: &str) -> bool {
+        s.len() <= INLINE_CAP
     }
 }
 
