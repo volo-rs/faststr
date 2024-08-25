@@ -1,16 +1,19 @@
+#![cfg_attr(not(feature = "std"), no_std)]
 #![cfg_attr(not(doctest), doc = include_str!("../README.md"))]
 
-use bytes::{Bytes, BytesMut};
-use simdutf8::basic::{from_utf8, Utf8Error};
-use std::{
-    borrow::{Borrow, Cow},
-    cmp::Ordering,
-    convert::Infallible,
-    fmt, hash, iter,
-    ops::Deref,
-    str::FromStr,
+extern crate alloc;
+
+use alloc::{
+    borrow::Cow,
+    string::{String, ToString},
     sync::Arc,
+    vec::Vec,
 };
+use bytes::{Bytes, BytesMut};
+use core::{
+    borrow::Borrow, cmp::Ordering, convert::Infallible, fmt, hash, iter, ops::Deref, str::FromStr,
+};
+use simdutf8::basic::{from_utf8, Utf8Error};
 
 /// `FastStr` is a string type that try to avoid the cost of clone.
 #[derive(Clone)]
@@ -65,7 +68,7 @@ impl FastStr {
     /// `v` must be valid UTF-8.
     #[inline]
     pub unsafe fn new_u8_slice_unchecked(v: &[u8]) -> Self {
-        let s = unsafe { std::str::from_utf8_unchecked(v) };
+        let s = unsafe { core::str::from_utf8_unchecked(v) };
         Self::new(s)
     }
 
@@ -119,7 +122,7 @@ impl FastStr {
     /// `b` must be valid UTF-8.
     #[inline]
     pub unsafe fn from_bytes_unchecked(b: Bytes) -> Self {
-        let s = std::str::from_utf8_unchecked(&b);
+        let s = core::str::from_utf8_unchecked(&b);
         if Self::can_inline(s) {
             return Self::new(s);
         }
@@ -601,7 +604,7 @@ impl Repr {
     /// The length of `s` must be <= `INLINE_CAP`.
     unsafe fn new_inline_impl(s: &str) -> Self {
         let mut buf = [0u8; INLINE_CAP];
-        std::ptr::copy_nonoverlapping(s.as_ptr(), buf.as_mut_ptr(), s.len());
+        core::ptr::copy_nonoverlapping(s.as_ptr(), buf.as_mut_ptr(), s.len());
         Self::Inline { len: s.len(), buf }
     }
 
@@ -665,11 +668,11 @@ impl Repr {
         match self {
             Self::Empty => "",
             // Safety: this is guaranteed by the user when creating the `FastStr`.
-            Self::Bytes(bytes) => unsafe { std::str::from_utf8_unchecked(bytes) },
+            Self::Bytes(bytes) => unsafe { core::str::from_utf8_unchecked(bytes) },
             Self::ArcStr(arc_str) => arc_str,
             Self::ArcString(arc_string) => arc_string,
             Self::StaticStr(s) => s,
-            Self::Inline { len, buf } => unsafe { std::str::from_utf8_unchecked(&buf[..*len]) },
+            Self::Inline { len, buf } => unsafe { core::str::from_utf8_unchecked(&buf[..*len]) },
         }
     }
 
@@ -709,7 +712,7 @@ impl Repr {
         match self {
             Self::Empty => Self::Empty,
             // Safety: this is guaranteed by the user when creating the `FastStr`.
-            Self::Bytes(bytes) => unsafe { Self::new(std::str::from_utf8_unchecked(bytes)) },
+            Self::Bytes(bytes) => unsafe { Self::new(core::str::from_utf8_unchecked(bytes)) },
             Self::ArcStr(arc_str) => Self::ArcStr(Arc::clone(arc_str)),
             Self::ArcString(arc_string) => Self::ArcString(Arc::clone(arc_string)),
             Self::StaticStr(s) => Self::StaticStr(s),
@@ -757,7 +760,7 @@ impl Repr {
                 s[sub_offset..sub_offset + sub_len].as_bytes(),
             )),
             Repr::StaticStr(s) => Self::StaticStr(unsafe {
-                std::str::from_utf8_unchecked(&s.as_bytes()[sub_offset..sub_offset + sub_len])
+                core::str::from_utf8_unchecked(&s.as_bytes()[sub_offset..sub_offset + sub_len])
             }),
             Repr::Inline { len: _, buf } => Self::Inline {
                 len: sub_len,
