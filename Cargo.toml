@@ -21,7 +21,7 @@ ryu = { version = "1", optional = true }
 
 [features]
 default = ["std"]
-std = ["serde/std"]
+std = ["serde?/std"]
 serde = ["dep:serde"]
 serde-unsafe = ["serde"]
 redis = ["dep:redis", "itoa", "ryu"]
