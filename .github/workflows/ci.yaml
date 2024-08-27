@@ -18,6 +18,7 @@ jobs:
       - test-linux-aarch64
       - test-macos
       - test-windows
+      - test-no-std
       - lint
     steps:
       - run: exit 0
@@ -77,6 +78,23 @@ jobs:
         run: |
           cargo check
           cargo test
+
+  test-no-std:
+    runs-on: [self-hosted, X64]
+    strategy:
+      matrix:
+        target:
+          - x86_64-unknown-none
+          - aarch64-unknown-none
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - name: Check no_std
+        run: |
+          rustup target add ${{ matrix.target }}
+          cargo check --target ${{ matrix.target }} --no-default-features
 
   lint:
     runs-on: [self-hosted, X64]
