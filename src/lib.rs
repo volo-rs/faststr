@@ -229,8 +229,14 @@ impl FastStr {
     }
 
     /// Return a new `FastStr` that represents a subset of the current string.
+    ///
+    /// Note: If the subset is small enough, it will be inlined.
     #[inline(always)]
     pub fn slice_ref(&self, subset: &str) -> Self {
+        if subset.len() <= INLINE_CAP {
+            // Safety: we have checked the length of subset <= `INLINE_CAP`.
+            return Self(unsafe { Repr::new_inline_impl(subset) });
+        }
         Self(self.0.slice_ref(subset.as_bytes()))
     }
 
