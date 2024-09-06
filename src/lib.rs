@@ -25,6 +25,8 @@ mod size_asserts {
     static_assertions::assert_eq_size!(super::FastStr, [u8; 40]); // 40 bytes
 }
 
+const INLINE_CAP: usize = 32;
+
 impl FastStr {
     /// Create a new `FastStr` from any type `T` that can be converted to a string slice
     /// (e.g., `String`, `&str`, `Arc<String>`, `Arc<str>`).
@@ -581,8 +583,6 @@ impl From<Cow<'static, str>> for FastStr {
         }
     }
 }
-
-const INLINE_CAP: usize = 38;
 
 seq!(N in 1..=32 {
     #[derive(Clone)]
