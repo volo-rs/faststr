@@ -25,7 +25,7 @@ mod size_asserts {
     static_assertions::assert_eq_size!(super::FastStr, [u8; 40]); // 40 bytes
 }
 
-const INLINE_CAP: usize = 32;
+const INLINE_CAP: usize = 27;
 
 impl FastStr {
     /// Create a new `FastStr` from any type `T` that can be converted to a string slice
@@ -298,7 +298,7 @@ impl FastStr {
             len += size;
         }
 
-        seq!(N in 1..=32 {
+        seq!(N in 1..=27 {
             match len {
                 0 => Self::empty(),
                 #(
@@ -487,7 +487,7 @@ where
         buf[len..][..size].copy_from_slice(slice.as_bytes());
         len += size;
     }
-    seq!(N in 1..=32 {
+    seq!(N in 1..=27 {
         match len {
             0 => return FastStr::empty(),
             #(
@@ -584,7 +584,7 @@ impl From<Cow<'static, str>> for FastStr {
     }
 }
 
-seq!(N in 1..=32 {
+seq!(N in 1..=27 {
     #[derive(Clone)]
     #[repr(u64)]
     enum Repr {
@@ -632,7 +632,7 @@ impl Repr {
     ///
     /// The length of `s` must be <= `INLINE_CAP`.
     unsafe fn new_inline_impl(s: &str) -> Self {
-        seq!(N in 1..=32 {
+        seq!(N in 1..=27 {
             match s.len() {
                 0 => Self::Empty,
                 #(
@@ -680,7 +680,7 @@ impl Repr {
 
     #[inline]
     fn len(&self) -> usize {
-        seq!(N in 1..=32 {
+        seq!(N in 1..=27 {
             match self {
                 Self::Empty => 0,
                 Self::Bytes(bytes) => bytes.len(),
@@ -708,7 +708,7 @@ impl Repr {
 
     #[inline]
     fn as_str(&self) -> &str {
-        seq!(N in 1..=32 {
+        seq!(N in 1..=27 {
             match self {
                 Self::Empty => "",
                 // Safety: this is guaranteed by the user when creating the `FastStr`.
@@ -726,7 +726,7 @@ impl Repr {
     #[inline]
     #[deprecated]
     fn into_string(self) -> String {
-        seq!(N in 1..=32 {
+        seq!(N in 1..=27 {
             match self {
                 Self::Empty => String::new(),
                 Self::Bytes(bytes) => unsafe { String::from_utf8_unchecked(bytes.into()) },
@@ -744,7 +744,7 @@ impl Repr {
 
     #[inline]
     fn into_bytes(self) -> Bytes {
-        seq!(N in 1..=32 {
+        seq!(N in 1..=27 {
             match self {
                 Self::Empty => Bytes::new(),
                 Self::Bytes(bytes) => bytes,
@@ -762,7 +762,7 @@ impl Repr {
 
     #[inline]
     fn deep_clone_bytes(&self) -> Self {
-        seq!(N in 1..=32 {
+        seq!(N in 1..=27 {
             match self {
                 Self::Empty => Self::Empty,
                 // Safety: this is guaranteed by the user when creating the `FastStr`.
@@ -804,7 +804,7 @@ impl Repr {
         );
 
         let sub_offset = sub_p - bytes_p;
-        seq!(N in 1..=32 {
+        seq!(N in 1..=27 {
             match self {
                 Repr::Empty => panic!("invalid slice ref, self is empty but subset is not"),
                 Repr::Bytes(b) => Self::Bytes(b.slice_ref(subset)),
@@ -832,7 +832,7 @@ impl Repr {
 impl AsRef<[u8]> for Repr {
     #[inline]
     fn as_ref(&self) -> &[u8] {
-        seq!(N in 1..=32 {
+        seq!(N in 1..=27 {
             match self {
                 Self::Empty => &[],
                 Self::Bytes(bytes) => bytes.as_ref(),
