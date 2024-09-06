@@ -13,6 +13,7 @@ use bytes::{Bytes, BytesMut};
 use core::{
     borrow::Borrow, cmp::Ordering, convert::Infallible, fmt, hash, iter, ops::Deref, str::FromStr,
 };
+use seq_macro::seq;
 use simdutf8::basic::{from_utf8, Utf8Error};
 
 /// `FastStr` is a string type that try to avoid the cost of clone.
@@ -294,7 +295,16 @@ impl FastStr {
             ch.encode_utf8(&mut buf[len..]);
             len += size;
         }
-        Self(Repr::Inline { len, buf })
+
+        seq!(N in 1..=32 {
+            match len {
+                0 => Self::empty(),
+                #(
+                    N => Self(Repr::Inline~N(buf.as_ref().try_into().unwrap())),
+                )*
+                _ => unreachable!(),
+            }
+        })
     }
 
     fn can_inline(s: &str) -> bool {
@@ -475,7 +485,15 @@ where
         buf[len..][..size].copy_from_slice(slice.as_bytes());
         len += size;
     }
-    FastStr(Repr::Inline { len, buf })
+    seq!(N in 1..=32 {
+        match len {
+            0 => return FastStr::empty(),
+            #(
+                N => return FastStr(Repr::Inline~N(buf.as_ref().try_into().unwrap())),
+            )*
+            _ => unreachable!(),
+        }
+    })
 }
 
 impl iter::FromIterator<String> for FastStr {
@@ -564,17 +582,22 @@ impl From<Cow<'static, str>> for FastStr {
     }
 }
 
-const INLINE_CAP: usize = 24;
+const INLINE_CAP: usize = 38;
 
-#[derive(Clone)]
-enum Repr {
-    Empty,
-    Bytes(Bytes),
-    ArcStr(Arc<str>),
-    ArcString(Arc<String>),
-    StaticStr(&'static str),
-    Inline { len: usize, buf: [u8; INLINE_CAP] },
-}
+seq!(N in 1..=32 {
+    #[derive(Clone)]
+    #[repr(u64)]
+    enum Repr {
+        Empty,
+        Bytes(Bytes),
+        ArcStr(Arc<str>),
+        ArcString(Arc<String>),
+        StaticStr(&'static str),
+        #(
+            Inline~N([u8; N]),
+        )*
+    }
+});
 
 impl Repr {
     #[inline]
@@ -609,9 +632,19 @@ impl Repr {
     ///
     /// The length of `s` must be <= `INLINE_CAP`.
     unsafe fn new_inline_impl(s: &str) -> Self {
-        let mut buf = [0u8; INLINE_CAP];
-        core::ptr::copy_nonoverlapping(s.as_ptr(), buf.as_mut_ptr(), s.len());
-        Self::Inline { len: s.len(), buf }
+        seq!(N in 1..=32 {
+            match s.len() {
+                0 => Self::Empty,
+                #(
+                N => {
+                    let mut buf = [0u8; N];
+                    core::ptr::copy_nonoverlapping(s.as_ptr(), buf.as_mut_ptr(), N);
+                    Self::Inline~N(buf)
+                }
+                )*
+                _ => unreachable!(),
+            }
+        })
     }
 
     #[inline]
@@ -647,14 +680,18 @@ impl Repr {
 
     #[inline]
     fn len(&self) -> usize {
-        match self {
-            Self::Empty => 0,
-            Self::Bytes(bytes) => bytes.len(),
-            Self::ArcStr(arc_str) => arc_str.len(),
-            Self::ArcString(arc_string) => arc_string.len(),
-            Self::StaticStr(s) => s.len(),
-            Self::Inline { len, .. } => *len,
-        }
+        seq!(N in 1..=32 {
+            match self {
+                Self::Empty => 0,
+                Self::Bytes(bytes) => bytes.len(),
+                Self::ArcStr(arc_str) => arc_str.len(),
+                Self::ArcString(arc_string) => arc_string.len(),
+                Self::StaticStr(s) => s.len(),
+                #(
+                    Self::Inline~N(..) => N,
+                )*
+            }
+        })
     }
 
     #[inline]
@@ -665,68 +702,79 @@ impl Repr {
             Self::ArcStr(arc_str) => arc_str.is_empty(),
             Self::ArcString(arc_string) => arc_string.is_empty(),
             Self::StaticStr(s) => s.is_empty(),
-            Self::Inline { len, .. } => *len == 0,
+            _ => false,
         }
     }
 
     #[inline]
     fn as_str(&self) -> &str {
-        match self {
-            Self::Empty => "",
-            // Safety: this is guaranteed by the user when creating the `FastStr`.
-            Self::Bytes(bytes) => unsafe { core::str::from_utf8_unchecked(bytes) },
-            Self::ArcStr(arc_str) => arc_str,
-            Self::ArcString(arc_string) => arc_string,
-            Self::StaticStr(s) => s,
-            Self::Inline { len, buf } => unsafe { core::str::from_utf8_unchecked(&buf[..*len]) },
-        }
+        seq!(N in 1..=32 {
+            match self {
+                Self::Empty => "",
+                // Safety: this is guaranteed by the user when creating the `FastStr`.
+                Self::Bytes(bytes) => unsafe { core::str::from_utf8_unchecked(bytes) },
+                Self::ArcStr(arc_str) => arc_str,
+                Self::ArcString(arc_string) => arc_string,
+                Self::StaticStr(s) => s,
+                #(
+                    Self::Inline~N(buf) => unsafe { core::str::from_utf8_unchecked(&buf[..N]) },
+                )*
+            }
+        })
     }
 
     #[inline]
     #[deprecated]
     fn into_string(self) -> String {
-        match self {
-            Self::Empty => String::new(),
-            Self::Bytes(bytes) => unsafe { String::from_utf8_unchecked(bytes.into()) },
-            Self::ArcStr(arc_str) => arc_str.to_string(),
-            Self::ArcString(arc_string) => {
-                Arc::try_unwrap(arc_string).unwrap_or_else(|arc| (*arc).clone())
+        seq!(N in 1..=32 {
+            match self {
+                Self::Empty => String::new(),
+                Self::Bytes(bytes) => unsafe { String::from_utf8_unchecked(bytes.into()) },
+                Self::ArcStr(arc_str) => arc_str.to_string(),
+                Self::ArcString(arc_string) => {
+                    Arc::try_unwrap(arc_string).unwrap_or_else(|arc| (*arc).clone())
+                }
+                Self::StaticStr(s) => s.to_string(),
+                #(
+                    Self::Inline~N(buf) => unsafe { String::from_utf8_unchecked(buf[..N].to_vec()) },
+                )*
             }
-            Self::StaticStr(s) => s.to_string(),
-            Self::Inline { len, buf } => unsafe {
-                String::from_utf8_unchecked(buf[..len].to_vec())
-            },
-        }
+        })
     }
 
     #[inline]
     fn into_bytes(self) -> Bytes {
-        match self {
-            Self::Empty => Bytes::new(),
-            Self::Bytes(bytes) => bytes,
-            Self::ArcStr(arc_str) => Bytes::from(arc_str.as_bytes().to_vec()),
-            Self::ArcString(arc_string) => {
-                Bytes::from(Arc::try_unwrap(arc_string).unwrap_or_else(|arc| (*arc).clone()))
+        seq!(N in 1..=32 {
+            match self {
+                Self::Empty => Bytes::new(),
+                Self::Bytes(bytes) => bytes,
+                Self::ArcStr(arc_str) => Bytes::from(arc_str.as_bytes().to_vec()),
+                Self::ArcString(arc_string) => {
+                    Bytes::from(Arc::try_unwrap(arc_string).unwrap_or_else(|arc| (*arc).clone()))
+                }
+                Self::StaticStr(s) => Bytes::from_static(s.as_bytes()),
+                #(
+                    Self::Inline~N(buf) => Bytes::from(buf[..N].to_vec()),
+                )*
             }
-            Self::StaticStr(s) => Bytes::from_static(s.as_bytes()),
-            Self::Inline { len, buf } => Bytes::from(buf[..len].to_vec()),
-        }
+        })
     }
 
     #[inline]
     fn deep_clone_bytes(&self) -> Self {
-        match self {
-            Self::Empty => Self::Empty,
-            // Safety: this is guaranteed by the user when creating the `FastStr`.
-            Self::Bytes(bytes) => unsafe { Self::new(core::str::from_utf8_unchecked(bytes)) },
-            Self::ArcStr(arc_str) => Self::ArcStr(Arc::clone(arc_str)),
-            Self::ArcString(arc_string) => Self::ArcString(Arc::clone(arc_string)),
-            Self::StaticStr(s) => Self::StaticStr(s),
-            Self::Inline { len, buf } => Self::Inline {
-                len: *len,
-                buf: *buf,
-            },
-        }
+        seq!(N in 1..=32 {
+            match self {
+                Self::Empty => Self::Empty,
+                // Safety: this is guaranteed by the user when creating the `FastStr`.
+                Self::Bytes(bytes) => unsafe { Self::new(core::str::from_utf8_unchecked(bytes)) },
+                Self::ArcStr(arc_str) => Self::ArcStr(Arc::clone(arc_str)),
+                Self::ArcString(arc_string) => Self::ArcString(Arc::clone(arc_string)),
+                Self::StaticStr(s) => Self::StaticStr(s),
+                #(
+                    Self::Inline~N(buf) => Self::Inline~N(*buf),
+                )*
+            }
+        })
     }
 
     #[inline]
@@ -756,41 +804,46 @@ impl Repr {
         );
 
         let sub_offset = sub_p - bytes_p;
-        match self {
-            Repr::Empty => panic!("invalid slice ref, self is empty but subset is not"),
-            Repr::Bytes(b) => Self::Bytes(b.slice_ref(subset)),
-            Repr::ArcStr(s) => Self::Bytes(Bytes::copy_from_slice(
-                s[sub_offset..sub_offset + sub_len].as_bytes(),
-            )),
-            Repr::ArcString(s) => Self::Bytes(Bytes::copy_from_slice(
-                s[sub_offset..sub_offset + sub_len].as_bytes(),
-            )),
-            Repr::StaticStr(s) => Self::StaticStr(unsafe {
-                core::str::from_utf8_unchecked(&s.as_bytes()[sub_offset..sub_offset + sub_len])
-            }),
-            Repr::Inline { len: _, buf } => Self::Inline {
-                len: sub_len,
-                buf: {
-                    let mut new_buf = [0; INLINE_CAP];
-                    new_buf[..sub_len].copy_from_slice(&buf[sub_offset..sub_offset + sub_len]);
-                    new_buf
-                },
-            },
-        }
+        seq!(N in 1..=32 {
+            match self {
+                Repr::Empty => panic!("invalid slice ref, self is empty but subset is not"),
+                Repr::Bytes(b) => Self::Bytes(b.slice_ref(subset)),
+                Repr::ArcStr(s) => Self::Bytes(Bytes::copy_from_slice(
+                    s[sub_offset..sub_offset + sub_len].as_bytes(),
+                )),
+                Repr::ArcString(s) => Self::Bytes(Bytes::copy_from_slice(
+                    s[sub_offset..sub_offset + sub_len].as_bytes(),
+                )),
+                Repr::StaticStr(s) => Self::StaticStr(unsafe {
+                    core::str::from_utf8_unchecked(&s.as_bytes()[sub_offset..sub_offset + sub_len])
+                }),
+                #(
+                    Repr::Inline~N(buf) => {
+                        let mut new_buf = [0; N];
+                        new_buf[..sub_len].copy_from_slice(&buf[sub_offset..sub_offset + sub_len]);
+                        Self::Inline~N(new_buf)
+                    }
+                )*
+            }
+        })
     }
 }
 
 impl AsRef<[u8]> for Repr {
     #[inline]
     fn as_ref(&self) -> &[u8] {
-        match self {
-            Self::Empty => &[],
-            Self::Bytes(bytes) => bytes.as_ref(),
-            Self::ArcStr(arc_str) => arc_str.as_bytes(),
-            Self::ArcString(arc_string) => arc_string.as_bytes(),
-            Self::StaticStr(s) => s.as_bytes(),
-            Self::Inline { len, buf } => &buf[..*len],
-        }
+        seq!(N in 1..=32 {
+            match self {
+                Self::Empty => &[],
+                Self::Bytes(bytes) => bytes.as_ref(),
+                Self::ArcStr(arc_str) => arc_str.as_bytes(),
+                Self::ArcString(arc_string) => arc_string.as_bytes(),
+                Self::StaticStr(s) => s.as_bytes(),
+                #(
+                    Self::Inline~N(buf) => &buf[..N],
+                )*
+            }
+        })
     }
 }
 #[cfg(feature = "redis")]
