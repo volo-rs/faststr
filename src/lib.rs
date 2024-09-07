@@ -780,7 +780,12 @@ impl Repr {
             Self::ArcStr(arc_str) => arc_str.is_empty(),
             Self::ArcString(arc_string) => arc_string.is_empty(),
             Self::StaticStr(s) => s.is_empty(),
-            _ => false,
+            Self::Inline1 { .. } => false,
+            Self::Inline2 { .. } => false,
+            Self::Inline4 { .. } => false,
+            Self::Inline8 { .. } => false,
+            Self::Inline16 { .. } => false,
+            Self::Inline32 { .. } => false,
         }
     }
 
