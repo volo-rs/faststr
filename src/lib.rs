@@ -302,27 +302,27 @@ impl FastStr {
             0 => Self::empty(),
             1 => Self(Repr::Inline1 {
                 len: unsafe { InlineSize1::transmute_from_usize(len) },
-                buf: buf.as_ref().try_into().unwrap(),
+                buf: unsafe { *(buf.as_ptr() as *const [u8; 1]) },
             }),
             2 => Self(Repr::Inline2 {
                 len: unsafe { InlineSize2::transmute_from_usize(len) },
-                buf: buf.as_ref().try_into().unwrap(),
+                buf: unsafe { *(buf.as_ptr() as *const [u8; 2]) },
             }),
             3..=4 => Self(Repr::Inline4 {
                 len: unsafe { InlineSize4::transmute_from_usize(len) },
-                buf: buf.as_ref().try_into().unwrap(),
+                buf: unsafe { *(buf.as_ptr() as *const [u8; 4]) },
             }),
             5..=8 => Self(Repr::Inline8 {
                 len: unsafe { InlineSize8::transmute_from_usize(len) },
-                buf: buf.as_ref().try_into().unwrap(),
+                buf: unsafe { *(buf.as_ptr() as *const [u8; 8]) },
             }),
             9..=16 => Self(Repr::Inline16 {
                 len: unsafe { InlineSize16::transmute_from_usize(len) },
-                buf: buf.as_ref().try_into().unwrap(),
+                buf: unsafe { *(buf.as_ptr() as *const [u8; 16]) },
             }),
             17..=32 => Self(Repr::Inline32 {
                 len: unsafe { InlineSize32::transmute_from_usize(len) },
-                buf: buf.as_ref().try_into().unwrap(),
+                buf: unsafe { *(buf.as_ptr() as *const [u8; 32]) },
             }),
             _ => unreachable!(),
         }
@@ -510,27 +510,27 @@ where
         0 => FastStr::empty(),
         1 => FastStr(Repr::Inline1 {
             len: unsafe { InlineSize1::transmute_from_usize(len) },
-            buf: buf.as_ref().try_into().unwrap(),
+            buf: unsafe { *(buf.as_ptr() as *const [u8; 1]) },
         }),
         2 => FastStr(Repr::Inline2 {
             len: unsafe { InlineSize2::transmute_from_usize(len) },
-            buf: buf.as_ref().try_into().unwrap(),
+            buf: unsafe { *(buf.as_ptr() as *const [u8; 2]) },
         }),
         3..=4 => FastStr(Repr::Inline4 {
             len: unsafe { InlineSize4::transmute_from_usize(len) },
-            buf: buf.as_ref().try_into().unwrap(),
+            buf: unsafe { *(buf.as_ptr() as *const [u8; 4]) },
         }),
         5..=8 => FastStr(Repr::Inline8 {
             len: unsafe { InlineSize8::transmute_from_usize(len) },
-            buf: buf.as_ref().try_into().unwrap(),
+            buf: unsafe { *(buf.as_ptr() as *const [u8; 8]) },
         }),
         9..=16 => FastStr(Repr::Inline16 {
             len: unsafe { InlineSize16::transmute_from_usize(len) },
-            buf: buf.as_ref().try_into().unwrap(),
+            buf: unsafe { *(buf.as_ptr() as *const [u8; 16]) },
         }),
         17..=32 => FastStr(Repr::Inline32 {
             len: unsafe { InlineSize32::transmute_from_usize(len) },
-            buf: buf.as_ref().try_into().unwrap(),
+            buf: unsafe { *(buf.as_ptr() as *const [u8; 32]) },
         }),
         _ => unreachable!(),
     }
@@ -1001,12 +1001,12 @@ impl AsRef<[u8]> for Repr {
             Self::ArcStr(arc_str) => arc_str.as_bytes(),
             Self::ArcString(arc_string) => arc_string.as_bytes(),
             Self::StaticStr(s) => s.as_bytes(),
-            Self::Inline1 { buf, .. } => &buf[..],
-            Self::Inline2 { buf, .. } => &buf[..],
-            Self::Inline4 { buf, .. } => &buf[..],
-            Self::Inline8 { buf, .. } => &buf[..],
-            Self::Inline16 { buf, .. } => &buf[..],
-            Self::Inline32 { buf, .. } => &buf[..],
+            Self::Inline1 { len, buf, .. } => &buf[..*len as usize],
+            Self::Inline2 { len, buf, .. } => &buf[..*len as usize],
+            Self::Inline4 { len, buf, .. } => &buf[..*len as usize],
+            Self::Inline8 { len, buf, .. } => &buf[..*len as usize],
+            Self::Inline16 { len, buf, .. } => &buf[..*len as usize],
+            Self::Inline32 { len, buf, .. } => &buf[..*len as usize],
         }
     }
 }
