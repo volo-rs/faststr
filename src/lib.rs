@@ -11,9 +11,9 @@ use alloc::{
 };
 use bytes::{Bytes, BytesMut};
 use core::{
-    borrow::Borrow, cmp::Ordering, convert::Infallible, fmt, hash, iter, mem, ops::Deref,
-    str::FromStr,
+    borrow::Borrow, cmp::Ordering, convert::Infallible, fmt, hash, iter, ops::Deref, str::FromStr,
 };
+use inline_size::*;
 use simdutf8::basic::{from_utf8, Utf8Error};
 
 /// `FastStr` is a string type that try to avoid the cost of clone.
@@ -301,27 +301,27 @@ impl FastStr {
         match len {
             0 => Self::empty(),
             1 => Self(Repr::Inline1 {
-                len: InlineSize1::transmute_from_u8(len),
+                len: unsafe { InlineSize1::transmute_from_usize(len) },
                 buf: buf.as_ref().try_into().unwrap(),
             }),
             2 => Self(Repr::Inline2 {
-                len: InlineSize2::transmute_from_u8(len),
+                len: unsafe { InlineSize2::transmute_from_usize(len) },
                 buf: buf.as_ref().try_into().unwrap(),
             }),
             3..=4 => Self(Repr::Inline4 {
-                len: InlineSize4::transmute_from_u8(len),
+                len: unsafe { InlineSize4::transmute_from_usize(len) },
                 buf: buf.as_ref().try_into().unwrap(),
             }),
             5..=8 => Self(Repr::Inline8 {
-                len: InlineSize8::transmute_from_u8(len),
+                len: unsafe { InlineSize8::transmute_from_usize(len) },
                 buf: buf.as_ref().try_into().unwrap(),
             }),
             9..=16 => Self(Repr::Inline16 {
-                len: InlineSize16::transmute_from_u8(len),
+                len: unsafe { InlineSize16::transmute_from_usize(len) },
                 buf: buf.as_ref().try_into().unwrap(),
             }),
             17..=32 => Self(Repr::Inline32 {
-                len: InlineSize32::transmute_from_u8(len),
+                len: unsafe { InlineSize32::transmute_from_usize(len) },
                 buf: buf.as_ref().try_into().unwrap(),
             }),
             _ => unreachable!(),
@@ -509,27 +509,27 @@ where
     match len {
         0 => FastStr::empty(),
         1 => FastStr(Repr::Inline1 {
-            len: InlineSize1::transmute_from_u8(len),
+            len: unsafe { InlineSize1::transmute_from_usize(len) },
             buf: buf.as_ref().try_into().unwrap(),
         }),
         2 => FastStr(Repr::Inline2 {
-            len: InlineSize2::transmute_from_u8(len),
+            len: unsafe { InlineSize2::transmute_from_usize(len) },
             buf: buf.as_ref().try_into().unwrap(),
         }),
         3..=4 => FastStr(Repr::Inline4 {
-            len: InlineSize4::transmute_from_u8(len),
+            len: unsafe { InlineSize4::transmute_from_usize(len) },
             buf: buf.as_ref().try_into().unwrap(),
         }),
         5..=8 => FastStr(Repr::Inline8 {
-            len: InlineSize8::transmute_from_u8(len),
+            len: unsafe { InlineSize8::transmute_from_usize(len) },
             buf: buf.as_ref().try_into().unwrap(),
         }),
         9..=16 => FastStr(Repr::Inline16 {
-            len: InlineSize16::transmute_from_u8(len),
+            len: unsafe { InlineSize16::transmute_from_usize(len) },
             buf: buf.as_ref().try_into().unwrap(),
         }),
         17..=32 => FastStr(Repr::Inline32 {
-            len: InlineSize32::transmute_from_u8(len),
+            len: unsafe { InlineSize32::transmute_from_usize(len) },
             buf: buf.as_ref().try_into().unwrap(),
         }),
         _ => unreachable!(),
@@ -622,110 +622,6 @@ impl From<Cow<'static, str>> for FastStr {
     }
 }
 
-#[derive(Clone, Copy)]
-#[repr(usize)]
-enum InlineSize1 {
-    _V1 = 1,
-}
-
-impl InlineSize1 {
-    #[inline(always)]
-    const fn transmute_from_u8(value: usize) -> Self {
-        unsafe { mem::transmute::<usize, Self>(value) }
-    }
-}
-
-#[derive(Clone, Copy)]
-#[repr(usize)]
-enum InlineSize2 {
-    _V2 = 2,
-}
-
-impl InlineSize2 {
-    #[inline(always)]
-    const fn transmute_from_u8(value: usize) -> Self {
-        unsafe { mem::transmute::<usize, Self>(value) }
-    }
-}
-
-#[derive(Clone, Copy)]
-#[repr(usize)]
-enum InlineSize4 {
-    _V3 = 3,
-    _V4,
-}
-
-impl InlineSize4 {
-    #[inline(always)]
-    const fn transmute_from_u8(value: usize) -> Self {
-        unsafe { mem::transmute::<usize, Self>(value) }
-    }
-}
-
-#[derive(Clone, Copy)]
-#[repr(usize)]
-enum InlineSize8 {
-    _V5 = 5,
-    _V6,
-    _V7,
-    _V8,
-}
-
-impl InlineSize8 {
-    #[inline(always)]
-    const fn transmute_from_u8(value: usize) -> Self {
-        unsafe { mem::transmute::<usize, Self>(value) }
-    }
-}
-
-#[derive(Clone, Copy)]
-#[repr(usize)]
-enum InlineSize16 {
-    _V9 = 9,
-    _V10,
-    _V11,
-    _V12,
-    _V13,
-    _V14,
-    _V15,
-    _V16,
-}
-
-impl InlineSize16 {
-    #[inline(always)]
-    const fn transmute_from_u8(value: usize) -> Self {
-        unsafe { mem::transmute::<usize, Self>(value) }
-    }
-}
-
-#[derive(Clone, Copy)]
-#[repr(usize)]
-enum InlineSize32 {
-    _V17 = 17,
-    _V18,
-    _V19,
-    _V20,
-    _V21,
-    _V22,
-    _V23,
-    _V24,
-    _V25,
-    _V26,
-    _V27,
-    _V28,
-    _V29,
-    _V30,
-    _V31,
-    _V32,
-}
-
-impl InlineSize32 {
-    #[inline(always)]
-    const fn transmute_from_u8(value: usize) -> Self {
-        unsafe { mem::transmute::<usize, Self>(value) }
-    }
-}
-
 #[derive(Clone)]
 enum Repr {
     Empty,
@@ -780,7 +676,7 @@ impl Repr {
                 let mut buf = [0u8; 1];
                 core::ptr::copy_nonoverlapping(s.as_ptr(), buf.as_mut_ptr(), 1);
                 Self::Inline1 {
-                    len: InlineSize1::transmute_from_u8(1),
+                    len: InlineSize1::transmute_from_usize(1),
                     buf,
                 }
             }
@@ -788,7 +684,7 @@ impl Repr {
                 let mut buf = [0u8; 2];
                 core::ptr::copy_nonoverlapping(s.as_ptr(), buf.as_mut_ptr(), 2);
                 Self::Inline2 {
-                    len: InlineSize2::transmute_from_u8(2),
+                    len: InlineSize2::transmute_from_usize(2),
                     buf,
                 }
             }
@@ -796,7 +692,7 @@ impl Repr {
                 let mut buf = [0u8; 4];
                 core::ptr::copy_nonoverlapping(s.as_ptr(), buf.as_mut_ptr(), 4);
                 Self::Inline4 {
-                    len: InlineSize4::transmute_from_u8(s.len()),
+                    len: InlineSize4::transmute_from_usize(s.len()),
                     buf,
                 }
             }
@@ -804,7 +700,7 @@ impl Repr {
                 let mut buf = [0u8; 8];
                 core::ptr::copy_nonoverlapping(s.as_ptr(), buf.as_mut_ptr(), 8);
                 Self::Inline8 {
-                    len: InlineSize8::transmute_from_u8(s.len()),
+                    len: InlineSize8::transmute_from_usize(s.len()),
                     buf,
                 }
             }
@@ -812,7 +708,7 @@ impl Repr {
                 let mut buf = [0u8; 16];
                 core::ptr::copy_nonoverlapping(s.as_ptr(), buf.as_mut_ptr(), 16);
                 Self::Inline16 {
-                    len: InlineSize16::transmute_from_u8(s.len()),
+                    len: InlineSize16::transmute_from_usize(s.len()),
                     buf,
                 }
             }
@@ -820,7 +716,7 @@ impl Repr {
                 let mut buf = [0u8; 32];
                 core::ptr::copy_nonoverlapping(s.as_ptr(), buf.as_mut_ptr(), 32);
                 Self::Inline32 {
-                    len: InlineSize32::transmute_from_u8(s.len()),
+                    len: InlineSize32::transmute_from_usize(s.len()),
                     buf,
                 }
             }
@@ -960,12 +856,12 @@ impl Repr {
                 Bytes::from(Arc::try_unwrap(arc_string).unwrap_or_else(|arc| (*arc).clone()))
             }
             Self::StaticStr(s) => Bytes::from_static(s.as_bytes()),
-            Self::Inline1 { len, buf } => unsafe { Bytes::from(buf[..len as usize].to_vec()) },
-            Self::Inline2 { len, buf } => unsafe { Bytes::from(buf[..len as usize].to_vec()) },
-            Self::Inline4 { len, buf } => unsafe { Bytes::from(buf[..len as usize].to_vec()) },
-            Self::Inline8 { len, buf } => unsafe { Bytes::from(buf[..len as usize].to_vec()) },
-            Self::Inline16 { len, buf } => unsafe { Bytes::from(buf[..len as usize].to_vec()) },
-            Self::Inline32 { len, buf } => unsafe { Bytes::from(buf[..len as usize].to_vec()) },
+            Self::Inline1 { len, buf } => Bytes::from(buf[..len as usize].to_vec()),
+            Self::Inline2 { len, buf } => Bytes::from(buf[..len as usize].to_vec()),
+            Self::Inline4 { len, buf } => Bytes::from(buf[..len as usize].to_vec()),
+            Self::Inline8 { len, buf } => Bytes::from(buf[..len as usize].to_vec()),
+            Self::Inline16 { len, buf } => Bytes::from(buf[..len as usize].to_vec()),
+            Self::Inline32 { len, buf } => Bytes::from(buf[..len as usize].to_vec()),
         }
     }
 
@@ -1049,7 +945,7 @@ impl Repr {
                 new_buf[..sub_len].copy_from_slice(&buf[sub_offset..sub_offset + sub_len]);
                 Self::Inline1 {
                     len: *len,
-                    buf: new_buf.as_ref().try_into().unwrap(),
+                    buf: new_buf,
                 }
             }
             Repr::Inline2 { len, buf } => {
@@ -1057,7 +953,7 @@ impl Repr {
                 new_buf[..sub_len].copy_from_slice(&buf[sub_offset..sub_offset + sub_len]);
                 Self::Inline2 {
                     len: *len,
-                    buf: new_buf.as_ref().try_into().unwrap(),
+                    buf: new_buf,
                 }
             }
             Repr::Inline4 { len, buf } => {
@@ -1065,7 +961,7 @@ impl Repr {
                 new_buf[..sub_len].copy_from_slice(&buf[sub_offset..sub_offset + sub_len]);
                 Self::Inline4 {
                     len: *len,
-                    buf: new_buf.as_ref().try_into().unwrap(),
+                    buf: new_buf,
                 }
             }
             Repr::Inline8 { len, buf } => {
@@ -1073,7 +969,7 @@ impl Repr {
                 new_buf[..sub_len].copy_from_slice(&buf[sub_offset..sub_offset + sub_len]);
                 Self::Inline8 {
                     len: *len,
-                    buf: new_buf.as_ref().try_into().unwrap(),
+                    buf: new_buf,
                 }
             }
             Repr::Inline16 { len, buf } => {
@@ -1081,7 +977,7 @@ impl Repr {
                 new_buf[..sub_len].copy_from_slice(&buf[sub_offset..sub_offset + sub_len]);
                 Self::Inline16 {
                     len: *len,
-                    buf: new_buf.as_ref().try_into().unwrap(),
+                    buf: new_buf,
                 }
             }
             Repr::Inline32 { len, buf } => {
@@ -1089,7 +985,7 @@ impl Repr {
                 new_buf[..sub_len].copy_from_slice(&buf[sub_offset..sub_offset + sub_len]);
                 Self::Inline32 {
                     len: *len,
-                    buf: new_buf.as_ref().try_into().unwrap(),
+                    buf: new_buf,
                 }
             }
         }
@@ -1114,6 +1010,9 @@ impl AsRef<[u8]> for Repr {
         }
     }
 }
+
+mod inline_size;
+
 #[cfg(feature = "redis")]
 mod redis;
 
