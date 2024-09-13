@@ -20,14 +20,17 @@ simdutf8 = { version = "0.1", default-features = false, features = [
 redis = { version = "0.26", optional = true, default-features = false }
 itoa = { version = "1", optional = true }
 ryu = { version = "1", optional = true }
+rkyv = { version = "0.8", optional = true, default-features = false }
 
 [features]
 default = ["std"]
-std = ["bytes/std", "simdutf8/std", "serde?/std"]
+std = ["bytes/std", "simdutf8/std", "serde?/std", "rkyv?/std"]
 serde = ["serde/alloc"]
 serde-unsafe = ["serde"]
 redis = ["std", "dep:redis", "itoa", "ryu"]
 redis-unsafe = ["redis"]
+rkyv = ["rkyv/alloc"]
+
 
 [dev-dependencies]
 static_assertions = { version = "1" }
