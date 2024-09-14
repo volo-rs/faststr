@@ -16,6 +16,8 @@ use core::{
 use simdutf8::basic::{from_utf8, Utf8Error};
 
 /// `FastStr` is a string type that try to avoid the cost of clone.
+/// 
+/// **Note:** The memory size of `FastStr` is not `24`, so switching from [`String`] or [`SmolStr`](https://docs.rs/smol_str/latest/smol_str/struct.SmolStr.html) to `FastStr` may not be harmless.
 #[derive(Clone)]
 pub struct FastStr(Repr);
 

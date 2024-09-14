@@ -32,6 +32,8 @@ Therefore, we have created the `FastStr` type. By sacrificing immutability, we c
 
 `FastStr` implements `From` trait for various types, so you can easily migrate to `FastStr` by replacing `String` with `FastStr` and adding `.into()`.
 
+<sub> **Note:** The memory size of `FastStr` is not `24`, so switching from `String` or [`SmolStr`](https://docs.rs/smol_str/latest/smol_str/struct.SmolStr.html) to `FastStr` may not be harmless.</sub>
+
 For example, if your API is something like this:
 
 ```rust
