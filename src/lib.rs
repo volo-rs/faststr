@@ -300,19 +300,7 @@ impl FastStr {
 
         match len {
             0 => Self::empty(),
-            1 => Self(Repr::Inline1 {
-                len: unsafe { InlineSize1::transmute_from_usize(len) },
-                buf: unsafe { *(buf.as_ptr() as *const [u8; 1]) },
-            }),
-            2 => Self(Repr::Inline2 {
-                len: unsafe { InlineSize2::transmute_from_usize(len) },
-                buf: unsafe { *(buf.as_ptr() as *const [u8; 2]) },
-            }),
-            3..=4 => Self(Repr::Inline4 {
-                len: unsafe { InlineSize4::transmute_from_usize(len) },
-                buf: unsafe { *(buf.as_ptr() as *const [u8; 4]) },
-            }),
-            5..=8 => Self(Repr::Inline8 {
+            1..=8 => Self(Repr::Inline8 {
                 len: unsafe { InlineSize8::transmute_from_usize(len) },
                 buf: unsafe { *(buf.as_ptr() as *const [u8; 8]) },
             }),
@@ -508,19 +496,7 @@ where
     }
     match len {
         0 => FastStr::empty(),
-        1 => FastStr(Repr::Inline1 {
-            len: unsafe { InlineSize1::transmute_from_usize(len) },
-            buf: unsafe { *(buf.as_ptr() as *const [u8; 1]) },
-        }),
-        2 => FastStr(Repr::Inline2 {
-            len: unsafe { InlineSize2::transmute_from_usize(len) },
-            buf: unsafe { *(buf.as_ptr() as *const [u8; 2]) },
-        }),
-        3..=4 => FastStr(Repr::Inline4 {
-            len: unsafe { InlineSize4::transmute_from_usize(len) },
-            buf: unsafe { *(buf.as_ptr() as *const [u8; 4]) },
-        }),
-        5..=8 => FastStr(Repr::Inline8 {
+        1..=8 => FastStr(Repr::Inline8 {
             len: unsafe { InlineSize8::transmute_from_usize(len) },
             buf: unsafe { *(buf.as_ptr() as *const [u8; 8]) },
         }),
@@ -629,9 +605,6 @@ enum Repr {
     ArcStr(Arc<str>),
     ArcString(Arc<String>),
     StaticStr(&'static str),
-    Inline1 { len: InlineSize1, buf: [u8; 1] },
-    Inline2 { len: InlineSize2, buf: [u8; 2] },
-    Inline4 { len: InlineSize4, buf: [u8; 4] },
     Inline8 { len: InlineSize8, buf: [u8; 8] },
     Inline16 { len: InlineSize16, buf: [u8; 16] },
     Inline32 { len: InlineSize32, buf: [u8; 32] },
@@ -672,31 +645,7 @@ impl Repr {
     unsafe fn new_inline_impl(s: &str) -> Self {
         match s.len() {
             0 => Self::Empty,
-            1 => {
-                let mut buf = [0u8; 1];
-                core::ptr::copy_nonoverlapping(s.as_ptr(), buf.as_mut_ptr(), 1);
-                Self::Inline1 {
-                    len: InlineSize1::transmute_from_usize(1),
-                    buf,
-                }
-            }
-            2 => {
-                let mut buf = [0u8; 2];
-                core::ptr::copy_nonoverlapping(s.as_ptr(), buf.as_mut_ptr(), 2);
-                Self::Inline2 {
-                    len: InlineSize2::transmute_from_usize(2),
-                    buf,
-                }
-            }
-            3..=4 => {
-                let mut buf = [0u8; 4];
-                core::ptr::copy_nonoverlapping(s.as_ptr(), buf.as_mut_ptr(), 4);
-                Self::Inline4 {
-                    len: InlineSize4::transmute_from_usize(s.len()),
-                    buf,
-                }
-            }
-            5..=8 => {
+            1..=8 => {
                 let mut buf = [0u8; 8];
                 core::ptr::copy_nonoverlapping(s.as_ptr(), buf.as_mut_ptr(), 8);
                 Self::Inline8 {
@@ -763,9 +712,6 @@ impl Repr {
             Self::ArcStr(arc_str) => arc_str.len(),
             Self::ArcString(arc_string) => arc_string.len(),
             Self::StaticStr(s) => s.len(),
-            Self::Inline1 { len, .. } => *len as usize,
-            Self::Inline2 { len, .. } => *len as usize,
-            Self::Inline4 { len, .. } => *len as usize,
             Self::Inline8 { len, .. } => *len as usize,
             Self::Inline16 { len, .. } => *len as usize,
             Self::Inline32 { len, .. } => *len as usize,
@@ -780,9 +726,6 @@ impl Repr {
             Self::ArcStr(arc_str) => arc_str.is_empty(),
             Self::ArcString(arc_string) => arc_string.is_empty(),
             Self::StaticStr(s) => s.is_empty(),
-            Self::Inline1 { .. } => false,
-            Self::Inline2 { .. } => false,
-            Self::Inline4 { .. } => false,
             Self::Inline8 { .. } => false,
             Self::Inline16 { .. } => false,
             Self::Inline32 { .. } => false,
@@ -798,15 +741,6 @@ impl Repr {
             Self::ArcStr(arc_str) => arc_str,
             Self::ArcString(arc_string) => arc_string,
             Self::StaticStr(s) => s,
-            Self::Inline1 { len, buf } => unsafe {
-                core::str::from_utf8_unchecked(&buf[..*len as usize])
-            },
-            Self::Inline2 { len, buf } => unsafe {
-                core::str::from_utf8_unchecked(&buf[..*len as usize])
-            },
-            Self::Inline4 { len, buf } => unsafe {
-                core::str::from_utf8_unchecked(&buf[..*len as usize])
-            },
             Self::Inline8 { len, buf } => unsafe {
                 core::str::from_utf8_unchecked(&buf[..*len as usize])
             },
@@ -830,15 +764,6 @@ impl Repr {
                 Arc::try_unwrap(arc_string).unwrap_or_else(|arc| (*arc).clone())
             }
             Self::StaticStr(s) => s.to_string(),
-            Self::Inline1 { len, buf } => unsafe {
-                String::from_utf8_unchecked(buf[..len as usize].to_vec())
-            },
-            Self::Inline2 { len, buf } => unsafe {
-                String::from_utf8_unchecked(buf[..len as usize].to_vec())
-            },
-            Self::Inline4 { len, buf } => unsafe {
-                String::from_utf8_unchecked(buf[..len as usize].to_vec())
-            },
             Self::Inline8 { len, buf } => unsafe {
                 String::from_utf8_unchecked(buf[..len as usize].to_vec())
             },
@@ -861,9 +786,6 @@ impl Repr {
                 Bytes::from(Arc::try_unwrap(arc_string).unwrap_or_else(|arc| (*arc).clone()))
             }
             Self::StaticStr(s) => Bytes::from_static(s.as_bytes()),
-            Self::Inline1 { len, buf } => Bytes::from(buf[..len as usize].to_vec()),
-            Self::Inline2 { len, buf } => Bytes::from(buf[..len as usize].to_vec()),
-            Self::Inline4 { len, buf } => Bytes::from(buf[..len as usize].to_vec()),
             Self::Inline8 { len, buf } => Bytes::from(buf[..len as usize].to_vec()),
             Self::Inline16 { len, buf } => Bytes::from(buf[..len as usize].to_vec()),
             Self::Inline32 { len, buf } => Bytes::from(buf[..len as usize].to_vec()),
@@ -879,18 +801,6 @@ impl Repr {
             Self::ArcStr(arc_str) => Self::ArcStr(Arc::clone(arc_str)),
             Self::ArcString(arc_string) => Self::ArcString(Arc::clone(arc_string)),
             Self::StaticStr(s) => Self::StaticStr(s),
-            Self::Inline1 { len, buf } => Self::Inline1 {
-                len: *len,
-                buf: *buf,
-            },
-            Self::Inline2 { len, buf } => Self::Inline2 {
-                len: *len,
-                buf: *buf,
-            },
-            Self::Inline4 { len, buf } => Self::Inline4 {
-                len: *len,
-                buf: *buf,
-            },
             Self::Inline8 { len, buf } => Self::Inline8 {
                 len: *len,
                 buf: *buf,
@@ -945,30 +855,6 @@ impl Repr {
             Repr::StaticStr(s) => Self::StaticStr(unsafe {
                 core::str::from_utf8_unchecked(&s.as_bytes()[sub_offset..sub_offset + sub_len])
             }),
-            Repr::Inline1 { len, buf } => {
-                let mut new_buf = [0u8; 1];
-                new_buf[..sub_len].copy_from_slice(&buf[sub_offset..sub_offset + sub_len]);
-                Self::Inline1 {
-                    len: *len,
-                    buf: new_buf,
-                }
-            }
-            Repr::Inline2 { len, buf } => {
-                let mut new_buf = [0u8; 2];
-                new_buf[..sub_len].copy_from_slice(&buf[sub_offset..sub_offset + sub_len]);
-                Self::Inline2 {
-                    len: *len,
-                    buf: new_buf,
-                }
-            }
-            Repr::Inline4 { len, buf } => {
-                let mut new_buf = [0u8; 4];
-                new_buf[..sub_len].copy_from_slice(&buf[sub_offset..sub_offset + sub_len]);
-                Self::Inline4 {
-                    len: *len,
-                    buf: new_buf,
-                }
-            }
             Repr::Inline8 { len, buf } => {
                 let mut new_buf = [0u8; 8];
                 new_buf[..sub_len].copy_from_slice(&buf[sub_offset..sub_offset + sub_len]);
@@ -1006,9 +892,6 @@ impl AsRef<[u8]> for Repr {
             Self::ArcStr(arc_str) => arc_str.as_bytes(),
             Self::ArcString(arc_string) => arc_string.as_bytes(),
             Self::StaticStr(s) => s.as_bytes(),
-            Self::Inline1 { len, buf, .. } => &buf[..*len as usize],
-            Self::Inline2 { len, buf, .. } => &buf[..*len as usize],
-            Self::Inline4 { len, buf, .. } => &buf[..*len as usize],
             Self::Inline8 { len, buf, .. } => &buf[..*len as usize],
             Self::Inline16 { len, buf, .. } => &buf[..*len as usize],
             Self::Inline32 { len, buf, .. } => &buf[..*len as usize],

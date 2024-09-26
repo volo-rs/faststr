@@ -2,54 +2,12 @@ use core::mem;
 
 #[derive(Clone, Copy)]
 #[repr(usize)]
-pub(crate) enum InlineSize1 {
-    _V1 = 1,
-}
-
-impl InlineSize1 {
-    #[inline(always)]
-    // SAFETY: The caller is responsible to ensure value is in [1, 1].
-    pub(crate) const unsafe fn transmute_from_usize(value: usize) -> Self {
-        debug_assert!(value == Self::_V1 as usize);
-        mem::transmute::<usize, Self>(value)
-    }
-}
-
-#[derive(Clone, Copy)]
-#[repr(usize)]
-pub(crate) enum InlineSize2 {
-    _V2 = 2,
-}
-
-impl InlineSize2 {
-    #[inline(always)]
-    /// SAFETY: The caller is responsible to ensure value is in \[2, 2\].
-    pub(crate) const unsafe fn transmute_from_usize(value: usize) -> Self {
-        debug_assert!(value == Self::_V2 as usize);
-        mem::transmute::<usize, Self>(value)
-    }
-}
-
-#[derive(Clone, Copy)]
-#[repr(usize)]
-pub(crate) enum InlineSize4 {
-    _V3 = 3,
-    _V4,
-}
-
-impl InlineSize4 {
-    #[inline(always)]
-    /// SAFETY: The caller is responsible to ensure value is in \[3, 4\].
-    pub(crate) const unsafe fn transmute_from_usize(value: usize) -> Self {
-        debug_assert!(value >= Self::_V3 as usize && value <= Self::_V4 as usize);
-        mem::transmute::<usize, Self>(value)
-    }
-}
-
-#[derive(Clone, Copy)]
-#[repr(usize)]
 pub(crate) enum InlineSize8 {
-    _V5 = 5,
+    _V1 = 1,
+    _V2,
+    _V3,
+    _V4,
+    _V5,
     _V6,
     _V7,
     _V8,
@@ -59,7 +17,7 @@ impl InlineSize8 {
     #[inline(always)]
     /// SAFETY: The caller is responsible to ensure value is in \[5, 8\].
     pub(crate) const unsafe fn transmute_from_usize(value: usize) -> Self {
-        debug_assert!(value >= Self::_V5 as usize && value <= Self::_V8 as usize);
+        debug_assert!(value >= Self::_V1 as usize && value <= Self::_V8 as usize);
         mem::transmute::<usize, Self>(value)
     }
 }
