@@ -1,6 +1,6 @@
 [package]
 name = "faststr"
-version = "0.2.25"
+version = "0.2.27"
 authors = ["Volo Team <volo@cloudwego.io>"]
 edition = "2021"
 description = "Faststr is a string library that reduces the cost of clone."
@@ -18,7 +18,6 @@ simdutf8 = { version = "0.1", default-features = false, features = [
     "aarch64_neon",
 ] }
 redis = { version = "0.27", optional = true, default-features = false }
-redis-0-26 = { version = "0.26", optional = true, default-features = false, package = "redis" }
 itoa = { version = "1", optional = true }
 ryu = { version = "1", optional = true }
 rkyv = { version = "0.8", optional = true, default-features = false }
@@ -28,7 +27,7 @@ default = ["std"]
 std = ["bytes/std", "simdutf8/std", "serde?/std", "rkyv?/std"]
 serde = ["serde/alloc"]
 serde-unsafe = ["serde"]
-redis = ["std", "dep:redis", "itoa", "ryu", "dep:redis-0-26"]
+redis = ["std", "dep:redis", "itoa", "ryu"]
 redis-unsafe = ["redis"]
 rkyv = ["rkyv/alloc"]
 

@@ -213,13 +213,12 @@ checksum = "5443807d6dff69373d433ab9ef5378ad8df50ca6298caf15de6e52e24aaf54d5"
 
 [[package]]
 name = "faststr"
-version = "0.2.25"
+version = "0.2.27"
 dependencies = [
  "bytes",
  "criterion",
  "itoa",
- "redis 0.26.1",
- "redis 0.27.6",
+ "redis",
  "rkyv",
  "ryu",
  "serde",
@@ -635,21 +634,6 @@ checksum = "1465873a3dfdaa8ae7cb14b4383657caab0b3e8a0aa9ae8e04b044854c8dfce2"
 dependencies = [
  "crossbeam-deque",
  "crossbeam-utils",
-]
-
-[[package]]
-name = "redis"
-version = "0.26.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e902a69d09078829137b4a5d9d082e0490393537badd7c91a3d69d14639e115f"
-dependencies = [
- "arc-swap",
- "combine",
- "itoa",
- "num-bigint",
- "percent-encoding",
- "ryu",
- "url",
 ]
 
 [[package]]
