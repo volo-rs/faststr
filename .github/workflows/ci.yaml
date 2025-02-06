@@ -24,10 +24,10 @@ jobs:
       - run: exit 0
 
   test-linux:
-    runs-on: [self-hosted, X64]
+    runs-on: [self-hosted, Linux, amd64]
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - uses: dtolnay/rust-toolchain@stable
       with:
         components: rustfmt
@@ -38,10 +38,10 @@ jobs:
         cargo test
 
   test-linux-aarch64:
-    runs-on: [self-hosted, arm]
+    runs-on: [self-hosted, Linux, aarch64]
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
@@ -52,42 +52,42 @@ jobs:
           cargo test
 
   test-macos:
-    runs-on: macos-latest
+    runs-on: [self-hosted, macOS]
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
-      - uses: Swatinem/rust-cache@v1
+      # - uses: Swatinem/rust-cache@v1
       - name: Run tests
         run: |
           cargo check
           cargo test
 
   test-windows:
-    runs-on: windows-latest
+    runs-on: [self-hosted, Windows]
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
-      - uses: Swatinem/rust-cache@v1
+      # - uses: Swatinem/rust-cache@v1
       - name: Run tests
         run: |
           cargo check
           cargo test
 
   test-no-std:
-    runs-on: [self-hosted, X64]
+    runs-on: [self-hosted, Linux, amd64]
     strategy:
       matrix:
         target:
           - x86_64-unknown-none
           - aarch64-unknown-none
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
@@ -97,10 +97,10 @@ jobs:
           cargo check --target ${{ matrix.target }} --no-default-features
 
   lint:
-    runs-on: [self-hosted, X64]
+    runs-on: [self-hosted, Linux, amd64]
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - uses: dtolnay/rust-toolchain@stable
       with:
         components: rustfmt, clippy

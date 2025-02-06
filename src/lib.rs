@@ -803,3 +803,6 @@ mod serde;
 
 #[cfg(feature = "rkyv")]
 mod rkyv;
+
+#[cfg(feature = "sqlx-mysql")]
+mod sqlx_mysql;
