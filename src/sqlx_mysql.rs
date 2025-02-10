@@ -16,7 +16,10 @@ impl<'r> Decode<'r, MySql> for FastStr {
     fn decode(value: MySqlValueRef<'r>) -> Result<Self, BoxDynError> {
         #[cfg(not(feature = "sqlx-mysql-unsafe"))]
         {
-            return <&str as Decode<MySql>>::decode(value).map(|s| FastStr::new(s));
+            let b = <&[u8] as Decode<MySql>>::decode(value)?;
+            return simdutf8::basic::from_utf8(b)
+                .map_err(|e| Box::new(e) as BoxDynError)
+                .map(FastStr::new);
         }
         #[cfg(feature = "sqlx-mysql-unsafe")]
         unsafe {
