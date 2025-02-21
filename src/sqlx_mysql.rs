@@ -34,6 +34,6 @@ impl Encode<'_, MySql> for FastStr {
         <&str as Encode<MySql>>::encode(self.as_str(), buf)
     }
     fn size_hint(&self) -> usize {
-        self.as_str().size_hint()
+        <&str as Encode<MySql>>::size_hint(&self.as_str())
     }
 }
