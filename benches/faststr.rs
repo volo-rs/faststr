@@ -25,7 +25,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         });
         drop(_s1);
         drop(_s2);
-        let s = String::from("a".repeat(size));
+        let s = "a".repeat(size);
         c.bench_function(format!("{}B string", size).as_str(), |b| {
             b.iter(|| black_box(s.clone()))
         });

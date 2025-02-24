@@ -379,7 +379,7 @@ impl<'a> PartialEq<&'a str> for FastStr {
     }
 }
 
-impl<'a> PartialEq<FastStr> for &'a str {
+impl PartialEq<FastStr> for &str {
     #[inline]
     fn eq(&self, other: &FastStr) -> bool {
         *self == other
@@ -407,7 +407,7 @@ impl<'a> PartialEq<&'a String> for FastStr {
     }
 }
 
-impl<'a> PartialEq<FastStr> for &'a String {
+impl PartialEq<FastStr> for &String {
     #[inline]
     fn eq(&self, other: &FastStr) -> bool {
         *self == other
