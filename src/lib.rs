@@ -806,3 +806,6 @@ mod rkyv;
 
 #[cfg(feature = "sqlx-mysql")]
 mod sqlx_mysql;
+
+#[cfg(feature = "sea-orm")]
+pub mod sea_orm;
