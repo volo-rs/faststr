@@ -24,6 +24,7 @@ rkyv = { version = "0.8", optional = true, default-features = false }
 sqlx = { version = "0.8", optional = true, default-features = false }
 sqlx-mysql = { version = "0.8", optional = true, default-features = false }
 ts-rs = { version = "10.1", optional = true, default-features = false }
+sea-orm = { version = "1.1", optional = true, default-features = false }
 
 [features]
 default = ["std"]
@@ -36,11 +37,16 @@ rkyv = ["rkyv/alloc"]
 sqlx-mysql = ["std", "dep:sqlx", "dep:sqlx-mysql"]
 sqlx-mysql-unsafe = ["sqlx-mysql"]
 ts-rs = ["std", "dep:ts-rs"]
+sea-orm = ["std", "dep:sea-orm"]
 
 
 [dev-dependencies]
 static_assertions = { version = "1" }
 criterion = { version = "0.5", features = ["html_reports"] }
+
+# For sea-orm integration tests
+sea-orm = { version = "1.1", features = ["macros", "mock"] }
+tokio = { version = "1", features = ["rt", "macros"] }
 
 [[bench]]
 name = "faststr"

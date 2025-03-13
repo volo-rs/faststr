@@ -809,3 +809,6 @@ mod sqlx_mysql;
 
 #[cfg(feature = "ts-rs")]
 pub mod ts_rs;
+
+#[cfg(feature = "sea-orm")]
+pub mod sea_orm;
