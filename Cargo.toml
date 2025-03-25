@@ -37,8 +37,7 @@ rkyv = ["rkyv/alloc"]
 sqlx-mysql = ["std", "dep:sqlx", "dep:sqlx-mysql"]
 sqlx-mysql-unsafe = ["sqlx-mysql"]
 ts-rs = ["std", "dep:ts-rs"]
-sea-orm = ["std", "dep:sea-orm"]
-
+sea-orm = ["std", "dep:sea-orm", "itoa"]
 
 [dev-dependencies]
 static_assertions = { version = "1" }

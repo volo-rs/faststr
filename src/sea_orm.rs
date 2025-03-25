@@ -10,7 +10,7 @@ impl std::convert::From<FastStr> for sea_orm::Value {
 
 impl sea_orm::TryFromU64 for FastStr {
     fn try_from_u64(value: u64) -> Result<Self, sea_orm::DbErr> {
-        Ok(FastStr::from_string(value.to_string()))
+        Ok(FastStr::new(itoa::Buffer::new().format(value)))
     }
 }
 
@@ -56,6 +56,7 @@ mod tests {
     use super::*;
     use sea_orm::{
         entity::prelude::*, ActiveValue::Set, DerivePrimaryKey, MockDatabase, QueryTrait,
+        TryFromU64 as _,
     };
 
     mod test_book {
@@ -187,5 +188,13 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(result, Some(test_book::Model { id: test_str }));
+    }
+
+    #[tokio::test]
+    async fn test_try_from_u64() {
+        assert_eq!(
+            FastStr::try_from_u64(1234567890),
+            Ok(FastStr::from_static_str("1234567890"))
+        );
     }
 }
