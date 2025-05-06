@@ -812,3 +812,7 @@ pub mod ts_rs;
 
 #[cfg(feature = "sea-orm")]
 pub mod sea_orm;
+
+
+#[cfg(feature = "sqlx-postgres")]
+pub mod sqlx_postgres;
