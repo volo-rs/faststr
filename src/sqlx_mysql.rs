@@ -23,8 +23,8 @@ impl<'r> Decode<'r, MySql> for FastStr {
         }
         #[cfg(feature = "sqlx-mysql-unsafe")]
         unsafe {
-            return <&[u8] as Decode<MySql>>::decode(value)
-                .map(|b| FastStr::new(std::str::from_utf8_unchecked(b)));
+            <&[u8] as Decode<MySql>>::decode(value)
+                .map(|b| FastStr::new(std::str::from_utf8_unchecked(b)))
         }
     }
 }

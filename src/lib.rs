@@ -530,7 +530,7 @@ impl FromStr for FastStr {
     }
 }
 
-// We need to wait for specilization to be stable to implement this.
+// We need to wait for specialization to be stable to implement this.
 // impl<T> From<T> for FastStr
 // where
 //     T: AsRef<str>,

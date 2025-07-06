@@ -1,8 +1,6 @@
 use crate::FastStr;
 use sqlx::{encode::IsNull, error::BoxDynError, Decode, Encode, Type};
-use sqlx_postgres::{Postgres, PgTypeInfo, PgValueRef};
-
-
+use sqlx_postgres::{PgTypeInfo, PgValueRef, Postgres};
 
 impl Type<Postgres> for FastStr {
     fn type_info() -> PgTypeInfo {
@@ -24,17 +22,17 @@ impl<'r> Decode<'r, Postgres> for FastStr {
         }
         #[cfg(feature = "sqlx-postgres-unsafe")]
         unsafe {
-            return <&[u8] as Decode<Postgres>>::decode(value)
-                .map(|b| FastStr::new(std::str::from_utf8_unchecked(b)));
+            <&[u8] as Decode<Postgres>>::decode(value)
+                .map(|b| FastStr::new(std::str::from_utf8_unchecked(b)))
         }
     }
 }
 
 impl Encode<'_, Postgres> for FastStr {
     fn encode_by_ref(
-            &self,
-            buf: &mut <Postgres as sqlx::Database>::ArgumentBuffer<'_>,
-        ) -> Result<IsNull, BoxDynError> {
+        &self,
+        buf: &mut <Postgres as sqlx::Database>::ArgumentBuffer<'_>,
+    ) -> Result<IsNull, BoxDynError> {
         <&str as Encode<Postgres>>::encode(self.as_str(), buf)
     }
     fn size_hint(&self) -> usize {

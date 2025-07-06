@@ -28,7 +28,7 @@ impl redis::FromRedisValue for crate::FastStr {
             e => Err(redis::RedisError::from((
                 redis::ErrorKind::TypeError,
                 "Invalid response type",
-                format!("{:?}", e),
+                format!("{e:?}"),
             ))),
         }
     }
@@ -50,7 +50,7 @@ impl redis::FromRedisValue for crate::FastStr {
             e => Err(redis::RedisError::from((
                 redis::ErrorKind::TypeError,
                 "Invalid response type",
-                format!("{:?}", e),
+                format!("{e:?}"),
             ))),
         }
     }
