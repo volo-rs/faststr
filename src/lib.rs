@@ -26,11 +26,17 @@ mod size_asserts {
     static_assertions::assert_eq_size!(super::FastStr, [u8; 40]); // 40 bytes
 }
 
+#[cfg(all(test, target_pointer_width = "32"))]
+mod size_asserts {
+    static_assertions::assert_eq_size!(super::FastStr, [u8; 32]); // 32 bytes
+}
+
 impl FastStr {
     /// Create a new `FastStr` from any type `T` that can be converted to a string slice
     /// (e.g., `String`, `&str`, `Arc<String>`, `Arc<str>`).
     ///
-    /// For small strings (up to 24 bytes), this avoids heap allocation, and copies on stack.
+    /// For small strings (up to 38 or 30 bytes, on 64-bit and 32-bit architectures
+    /// respectively), this avoids heap allocation, and copies on stack.
     #[inline]
     pub fn new<T>(text: T) -> Self
     where
@@ -39,9 +45,10 @@ impl FastStr {
         Self(Repr::new(text))
     }
 
-    /// Create a new inline `FastStr` (up to 24 bytes long) from a string slice `s`.
+    /// Create a new inline `FastStr` (up to 38 or 30 bytes, on 64-bit and 32-bit
+    /// architectures respectively) from a string slice `s`.
     ///
-    /// This constructor panics if the length of `s` is greater than 24.
+    /// This constructor panics if the length of `s` is greater than specified inline capacity.
     ///
     /// Note: the inline length is not guaranteed.
     #[inline]
@@ -296,7 +303,10 @@ impl FastStr {
             ch.encode_utf8(&mut buf[len..]);
             len += size;
         }
-        Self(Repr::Inline { len, buf })
+        Self(Repr::Inline {
+            len: len as u8,
+            buf,
+        })
     }
 
     fn can_inline(s: &str) -> bool {
@@ -477,7 +487,10 @@ where
         buf[len..][..size].copy_from_slice(slice.as_bytes());
         len += size;
     }
-    FastStr(Repr::Inline { len, buf })
+    FastStr(Repr::Inline {
+        len: len as u8,
+        buf,
+    })
 }
 
 impl iter::FromIterator<String> for FastStr {
@@ -566,7 +579,15 @@ impl From<Cow<'static, str>> for FastStr {
     }
 }
 
-const INLINE_CAP: usize = 24;
+// target_pointer_width = 64, other fields take up to 40B
+#[cfg(target_pointer_width = "64")]
+const INLINE_CAP: usize = 38;
+
+// target_pointer_width = 32, other fields take up to 32B
+#[cfg(target_pointer_width = "32")]
+const INLINE_CAP: usize = 30;
+
+// target_pointer_width = 16, we don't support this architecture
 
 #[derive(Clone)]
 enum Repr {
@@ -575,7 +596,7 @@ enum Repr {
     ArcStr(Arc<str>),
     ArcString(Arc<String>),
     StaticStr(&'static str),
-    Inline { len: usize, buf: [u8; INLINE_CAP] },
+    Inline { len: u8, buf: [u8; INLINE_CAP] },
 }
 
 impl Repr {
@@ -611,9 +632,14 @@ impl Repr {
     ///
     /// The length of `s` must be <= `INLINE_CAP`.
     unsafe fn new_inline_impl(s: &str) -> Self {
+        let len = s.len();
+        debug_assert!(len <= INLINE_CAP, "string is too long to inline");
         let mut buf = [0u8; INLINE_CAP];
-        core::ptr::copy_nonoverlapping(s.as_ptr(), buf.as_mut_ptr(), s.len());
-        Self::Inline { len: s.len(), buf }
+        core::ptr::copy_nonoverlapping(s.as_ptr(), buf.as_mut_ptr(), len);
+        Self::Inline {
+            len: len as u8,
+            buf,
+        }
     }
 
     #[inline]
@@ -655,7 +681,7 @@ impl Repr {
             Self::ArcStr(arc_str) => arc_str.len(),
             Self::ArcString(arc_string) => arc_string.len(),
             Self::StaticStr(s) => s.len(),
-            Self::Inline { len, .. } => *len,
+            Self::Inline { len, .. } => *len as usize,
         }
     }
 
@@ -680,7 +706,9 @@ impl Repr {
             Self::ArcStr(arc_str) => arc_str,
             Self::ArcString(arc_string) => arc_string,
             Self::StaticStr(s) => s,
-            Self::Inline { len, buf } => unsafe { core::str::from_utf8_unchecked(&buf[..*len]) },
+            Self::Inline { len, buf } => unsafe {
+                core::str::from_utf8_unchecked(&buf[..(*len as usize)])
+            },
         }
     }
 
@@ -696,7 +724,7 @@ impl Repr {
             }
             Self::StaticStr(s) => s.to_string(),
             Self::Inline { len, buf } => unsafe {
-                String::from_utf8_unchecked(buf[..len].to_vec())
+                String::from_utf8_unchecked(buf[..(len as usize)].to_vec())
             },
         }
     }
@@ -711,7 +739,7 @@ impl Repr {
                 Bytes::from(Arc::try_unwrap(arc_string).unwrap_or_else(|arc| (*arc).clone()))
             }
             Self::StaticStr(s) => Bytes::from_static(s.as_bytes()),
-            Self::Inline { len, buf } => Bytes::from(buf[..len].to_vec()),
+            Self::Inline { len, buf } => Bytes::from(buf[..(len as usize)].to_vec()),
         }
     }
 
@@ -771,7 +799,7 @@ impl Repr {
                 core::str::from_utf8_unchecked(&s.as_bytes()[sub_offset..sub_offset + sub_len])
             }),
             Repr::Inline { len: _, buf } => Self::Inline {
-                len: sub_len,
+                len: sub_len as u8,
                 buf: {
                     let mut new_buf = [0; INLINE_CAP];
                     new_buf[..sub_len].copy_from_slice(&buf[sub_offset..sub_offset + sub_len]);
@@ -791,7 +819,7 @@ impl AsRef<[u8]> for Repr {
             Self::ArcStr(arc_str) => arc_str.as_bytes(),
             Self::ArcString(arc_string) => arc_string.as_bytes(),
             Self::StaticStr(s) => s.as_bytes(),
-            Self::Inline { len, buf } => &buf[..*len],
+            Self::Inline { len, buf } => &buf[..(*len as usize)],
         }
     }
 }
@@ -812,7 +840,6 @@ pub mod ts_rs;
 
 #[cfg(feature = "sea-orm")]
 pub mod sea_orm;
-
 
 #[cfg(feature = "sqlx-postgres")]
 pub mod sqlx_postgres;

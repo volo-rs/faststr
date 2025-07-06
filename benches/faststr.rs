@@ -1,5 +1,7 @@
+use std::hint::black_box;
+
 use bytes::Bytes;
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion};
 use faststr::FastStr;
 
 fn criterion_benchmark(c: &mut Criterion) {
@@ -20,13 +22,13 @@ fn criterion_benchmark(c: &mut Criterion) {
         let s = FastStr::from_bytes(Bytes::from("a".repeat(size)));
         let _s1 = black_box(s.clone());
         let _s2 = black_box(s.clone());
-        c.bench_function(format!("{}B faststr", size).as_str(), |b| {
+        c.bench_function(format!("{size}B faststr").as_str(), |b| {
             b.iter(|| black_box(s.clone()))
         });
         drop(_s1);
         drop(_s2);
         let s = "a".repeat(size);
-        c.bench_function(format!("{}B string", size).as_str(), |b| {
+        c.bench_function(format!("{size}B string").as_str(), |b| {
             b.iter(|| black_box(s.clone()))
         });
     }
