@@ -2,6 +2,7 @@
 
 [![Crates.io](https://img.shields.io/crates/v/faststr)](https://crates.io/crates/faststr)
 [![Documentation](https://docs.rs/faststr/badge.svg)](https://docs.rs/faststr)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/volo-rs/faststr)
 [![Website](https://img.shields.io/website?up_message=cloudwego&url=https%3A%2F%2Fwww.cloudwego.io%2F)](https://www.cloudwego.io/)
 [![License](https://img.shields.io/crates/l/faststr)](#license)
 [![Build Status][actions-badge]][actions-url]
