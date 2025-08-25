@@ -1,7 +1,9 @@
 use crate::FastStr;
 
 impl ts_rs::TS for FastStr {
+    type OptionInnerType = Self;
     type WithoutGenerics = Self;
+
     fn name() -> String {
         "string".to_owned()
     }

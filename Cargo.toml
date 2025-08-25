@@ -1,6 +1,6 @@
 [package]
 name = "faststr"
-version = "0.2.31"
+version = "0.2.32"
 authors = ["Volo Team <volo@cloudwego.io>"]
 edition = "2021"
 description = "Faststr is a string library that reduces the cost of clone."
@@ -17,14 +17,14 @@ serde = { version = "1", optional = true, default-features = false }
 simdutf8 = { version = "0.1", default-features = false, features = [
     "aarch64_neon",
 ] }
-redis = { version = "0.29", optional = true, default-features = false }
+redis = { version = "0.32", optional = true, default-features = false }
 itoa = { version = "1", optional = true }
 ryu = { version = "1", optional = true }
 rkyv = { version = "0.8", optional = true, default-features = false }
 sqlx = { version = "0.8", optional = true, default-features = false }
 sqlx-mysql = { version = "0.8", optional = true, default-features = false }
-sqlx-postgres = { version = "0.8.5", optional = true, default-features = false }
-ts-rs = { version = "10.1", optional = true, default-features = false }
+sqlx-postgres = { version = "0.8.6", optional = true, default-features = false }
+ts-rs = { version = "11", optional = true, default-features = false }
 sea-orm = { version = "1.1", optional = true, default-features = false }
 
 [features]
@@ -44,7 +44,7 @@ sea-orm = ["std", "dep:sea-orm", "itoa"]
 
 [dev-dependencies]
 static_assertions = { version = "1" }
-criterion = { version = "0.5", features = ["html_reports"] }
+criterion = { version = "0.7", features = ["html_reports"] }
 
 # For sea-orm integration tests
 sea-orm = { version = "1.1", features = ["macros", "mock"] }
