@@ -816,3 +816,7 @@ pub mod sea_orm;
 
 #[cfg(feature = "sqlx-postgres")]
 pub mod sqlx_postgres;
+
+
+#[cfg(feature = "sqlx-sqlite")]
+pub mod sqlx_sqlite;
