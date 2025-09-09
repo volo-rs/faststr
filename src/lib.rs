@@ -9,10 +9,11 @@ use alloc::{
     sync::Arc,
     vec::Vec,
 };
-use bytes::{Bytes, BytesMut};
 use core::{
     borrow::Borrow, cmp::Ordering, convert::Infallible, fmt, hash, iter, ops::Deref, str::FromStr,
 };
+
+use bytes::{Bytes, BytesMut};
 use simdutf8::basic::{from_utf8, Utf8Error};
 
 /// `FastStr` is a string type that try to avoid the cost of clone.
@@ -263,8 +264,8 @@ impl FastStr {
         self.0.into_string()
     }
 
-    /// If the inner repr of FastStr is a Bytes, then it will be deep cloned and returned as a new FastStr.
-    /// Otherwise, it will return a new FastStr with the same repr which has no cost.
+    /// If the inner repr of FastStr is a Bytes, then it will be deep cloned and returned as a new
+    /// FastStr. Otherwise, it will return a new FastStr with the same repr which has no cost.
     ///
     /// This is used to free the original memory of the Bytes.
     ///
@@ -812,7 +813,6 @@ pub mod ts_rs;
 
 #[cfg(feature = "sea-orm")]
 pub mod sea_orm;
-
 
 #[cfg(feature = "sqlx-postgres")]
 pub mod sqlx_postgres;
