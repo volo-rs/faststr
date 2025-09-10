@@ -1,6 +1,7 @@
-use crate::FastStr;
 use sqlx::{encode::IsNull, error::BoxDynError, Decode, Encode, Type};
 use sqlx_mysql::{MySql, MySqlTypeInfo, MySqlValueRef};
+
+use crate::FastStr;
 
 impl Type<MySql> for FastStr {
     fn type_info() -> MySqlTypeInfo {

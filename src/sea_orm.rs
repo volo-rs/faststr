@@ -53,11 +53,12 @@ impl sea_orm::sea_query::ValueType for FastStr {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use sea_orm::{
         entity::prelude::*, ActiveValue::Set, DerivePrimaryKey, MockDatabase, QueryTrait,
         TryFromU64 as _,
     };
+
+    use super::*;
 
     mod test_book {
         use super::*;
@@ -169,7 +170,8 @@ mod tests {
             .build(db);
         assert_eq!(
             select_query.to_string(),
-            "SELECT `test_book`.`id` FROM `test_book` INNER JOIN `test_page` ON `test_book`.`id` = `test_page`.`book_id` WHERE `test_book`.`id` = 'test string'"
+            "SELECT `test_book`.`id` FROM `test_book` INNER JOIN `test_page` ON `test_book`.`id` \
+             = `test_page`.`book_id` WHERE `test_book`.`id` = 'test string'"
         );
     }
 
