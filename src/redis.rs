@@ -8,7 +8,7 @@ impl redis::ToRedisArgs for crate::FastStr {
 }
 
 impl redis::FromRedisValue for crate::FastStr {
-    fn from_redis_value(v: &redis::Value) -> redis::RedisResult<Self> {
+    fn from_redis_value_ref(v: &redis::Value) -> Result<Self, redis::ParsingError> {
         match v {
             redis::Value::Nil => Ok(Self::empty()),
             redis::Value::Int(v) => Ok(Self::new(itoa::Buffer::new().format(*v))),
@@ -25,21 +25,16 @@ impl redis::FromRedisValue for crate::FastStr {
                 Ok(Self::from_static_str(if *v { "true" } else { "false" }))
             }
             redis::Value::BigNumber(v) => Ok(Self::from_string(v.to_string())),
-            e => Err(redis::RedisError::from((
-                redis::ErrorKind::TypeError,
-                "Invalid response type",
-                format!("{:?}", e),
-            ))),
+            e => Err(format!("Invalid response type:{:?}", e).into()),
         }
     }
 
-    fn from_owned_redis_value(v: redis::Value) -> redis::RedisResult<Self> {
+    fn from_redis_value(v: redis::Value) -> Result<Self, redis::ParsingError> {
         match v {
             #[cfg(feature = "redis-unsafe")]
             redis::Value::BulkString(v) => Ok(unsafe { Self::from_vec_u8_unchecked(v) }),
             #[cfg(not(feature = "redis-unsafe"))]
-            redis::Value::BulkString(v) => Self::from_vec_u8(v)
-                .map_err(|_| (redis::ErrorKind::TypeError, "Invalid UTF8").into()),
+            redis::Value::BulkString(v) => Self::from_vec_u8(v).map_err(|_| "Invalid UTF8".into()),
             redis::Value::Nil => Ok(Self::empty()),
             redis::Value::Int(v) => Ok(Self::new(itoa::Buffer::new().format(v))),
             redis::Value::Okay => Ok(Self::from_static_str("OK")),
@@ -47,11 +42,7 @@ impl redis::FromRedisValue for crate::FastStr {
             redis::Value::Double(v) => Ok(Self::new(ryu::Buffer::new().format(v))),
             redis::Value::Boolean(v) => Ok(Self::from_static_str(if v { "true" } else { "false" })),
             redis::Value::BigNumber(v) => Ok(Self::from_string(v.to_string())),
-            e => Err(redis::RedisError::from((
-                redis::ErrorKind::TypeError,
-                "Invalid response type",
-                format!("{:?}", e),
-            ))),
+            e => Err(format!("Invalid response type:{:?}", e).into()),
         }
     }
 }
