@@ -1,6 +1,8 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![cfg_attr(not(doctest), doc = include_str!("../README.md"))]
 
+mod bytes_ref;
+
 extern crate alloc;
 
 use alloc::{
@@ -16,6 +18,8 @@ use core::{
 use bytes::{Bytes, BytesMut};
 use simdutf8::basic::{from_utf8, Utf8Error};
 
+pub use bytes_ref::BytesRef;
+
 /// `FastStr` is a string type that try to avoid the cost of clone.
 ///
 /// **Note:** The memory size of `FastStr` is not `24`, so switching from [`String`] or [`SmolStr`](https://docs.rs/smol_str/latest/smol_str/struct.SmolStr.html) to `FastStr` may not be harmless.
@@ -24,14 +28,14 @@ pub struct FastStr(Repr);
 
 #[cfg(all(test, target_pointer_width = "64"))]
 mod size_asserts {
-    static_assertions::assert_eq_size!(super::FastStr, [u8; 40]); // 40 bytes
+    static_assertions::assert_eq_size!(super::FastStr, [u8; 32]); // 32 bytes
 }
 
 impl FastStr {
     /// Create a new `FastStr` from any type `T` that can be converted to a string slice
     /// (e.g., `String`, `&str`, `Arc<String>`, `Arc<str>`).
     ///
-    /// For small strings (up to 24 bytes), this avoids heap allocation, and copies on stack.
+    /// For small strings (up to 30 bytes), this avoids heap allocation, and copies on stack.
     #[inline]
     pub fn new<T>(text: T) -> Self
     where
@@ -40,9 +44,9 @@ impl FastStr {
         Self(Repr::new(text))
     }
 
-    /// Create a new inline `FastStr` (up to 24 bytes long) from a string slice `s`.
+    /// Create a new inline `FastStr` (up to 30 bytes long) from a string slice `s`.
     ///
-    /// This constructor panics if the length of `s` is greater than 24.
+    /// This constructor panics if the length of `s` is greater than 30.
     ///
     /// Note: the inline length is not guaranteed.
     #[inline]
@@ -130,6 +134,30 @@ impl FastStr {
             return Self::new(s);
         }
         Self(Repr::from_bytes_unchecked(b))
+    }
+
+    #[inline]
+    pub fn from_bytes_ref(b: BytesRef) -> Result<Self, Utf8Error> {
+        from_utf8(&b)?;
+        // Safety: we have checked b is utf-8 valid
+        Ok(unsafe { Self::from_bytes_ref_unchecked(b) })
+    }
+
+    /// Create a new `FastStr` from a `BytesRef`.
+    ///
+    /// This is an unsafe method because the caller must ensure the bytes passed
+    /// to it are valid UTF-8.
+    ///
+    /// # Safety
+    ///
+    /// - `b` must represent a valid UTF-8 byte sequence.
+    #[inline]
+    pub unsafe fn from_bytes_ref_unchecked(b: BytesRef) -> Self {
+        let s = core::str::from_utf8_unchecked(&b);
+        if Self::can_inline(s) {
+            return Self::new(s);
+        }
+        Self(Repr::from_bytes_ref_unchecked(b))
     }
 
     /// Create a new `FastStr` from a `BytesMut` object, returning a
@@ -280,7 +308,7 @@ impl FastStr {
         let (min_size, _) = iter.size_hint();
         if min_size > INLINE_CAP {
             let s: String = iter.collect();
-            return Self(Repr::Bytes(Bytes::from(s)));
+            return Self(Repr::Bytes(Bytes::from(s).into()));
         }
         let mut len = 0;
         let mut buf = [0u8; INLINE_CAP];
@@ -292,12 +320,15 @@ impl FastStr {
                 s.push_str(unsafe { core::str::from_utf8_unchecked(&buf[..len]) });
                 s.push(ch);
                 s.extend(iter);
-                return Self(Repr::Bytes(Bytes::from(s)));
+                return Self(Repr::Bytes(Bytes::from(s).into()));
             }
             ch.encode_utf8(&mut buf[len..]);
             len += size;
         }
-        Self(Repr::Inline { len, buf })
+        Self(Repr::Inline {
+            len: len as ISize,
+            buf,
+        })
     }
 
     fn can_inline(s: &str) -> bool {
@@ -473,12 +504,15 @@ where
             s.push_str(unsafe { core::str::from_utf8_unchecked(&buf[..len]) });
             s.push_str(slice);
             s.extend(iter);
-            return FastStr(Repr::Bytes(Bytes::from(s)));
+            return FastStr(Repr::Bytes(Bytes::from(s).into()));
         }
         buf[len..][..size].copy_from_slice(slice.as_bytes());
         len += size;
     }
-    FastStr(Repr::Inline { len, buf })
+    FastStr(Repr::Inline {
+        len: len as ISize,
+        buf,
+    })
 }
 
 impl iter::FromIterator<String> for FastStr {
@@ -567,16 +601,20 @@ impl From<Cow<'static, str>> for FastStr {
     }
 }
 
-const INLINE_CAP: usize = 24;
+const INLINE_CAP: usize = 30;
 
+/// len size of Inline Type
+type ISize = u8;
+
+#[repr(u8)]
 #[derive(Clone)]
 enum Repr {
     Empty,
-    Bytes(Bytes),
+    Bytes(BytesRef),
     ArcStr(Arc<str>),
     ArcString(Arc<String>),
     StaticStr(&'static str),
-    Inline { len: usize, buf: [u8; INLINE_CAP] },
+    Inline { len: ISize, buf: [u8; INLINE_CAP] },
 }
 
 impl Repr {
@@ -597,7 +635,7 @@ impl Repr {
             }
         }
 
-        Self::Bytes(Bytes::copy_from_slice(text.as_bytes()))
+        Self::Bytes(Bytes::copy_from_slice(text.as_bytes()).into())
     }
 
     fn new_inline(s: &str) -> Self {
@@ -614,7 +652,10 @@ impl Repr {
     unsafe fn new_inline_impl(s: &str) -> Self {
         let mut buf = [0u8; INLINE_CAP];
         core::ptr::copy_nonoverlapping(s.as_ptr(), buf.as_mut_ptr(), s.len());
-        Self::Inline { len: s.len(), buf }
+        Self::Inline {
+            len: s.len() as ISize,
+            buf,
+        }
     }
 
     #[inline]
@@ -645,6 +686,14 @@ impl Repr {
     /// Safety: the caller must guarantee that the bytes `v` are valid UTF-8.
     #[inline]
     unsafe fn from_bytes_unchecked(bytes: Bytes) -> Self {
+        Self::Bytes(bytes.into())
+    }
+
+    /// # Safety
+    ///
+    /// `bytes` must represent a valid UTF-8 byte sequence.
+    #[inline]
+    unsafe fn from_bytes_ref_unchecked(bytes: BytesRef) -> Self {
         Self::Bytes(bytes)
     }
 
@@ -652,11 +701,11 @@ impl Repr {
     fn len(&self) -> usize {
         match self {
             Self::Empty => 0,
-            Self::Bytes(bytes) => bytes.len(),
+            Self::Bytes(bytes) => bytes.len,
             Self::ArcStr(arc_str) => arc_str.len(),
             Self::ArcString(arc_string) => arc_string.len(),
             Self::StaticStr(s) => s.len(),
-            Self::Inline { len, .. } => *len,
+            Self::Inline { len, .. } => *len as usize,
         }
     }
 
@@ -664,7 +713,7 @@ impl Repr {
     fn is_empty(&self) -> bool {
         match self {
             Self::Empty => true,
-            Self::Bytes(bytes) => bytes.is_empty(),
+            Self::Bytes(bytes) => bytes.len == 0,
             Self::ArcStr(arc_str) => arc_str.is_empty(),
             Self::ArcString(arc_string) => arc_string.is_empty(),
             Self::StaticStr(s) => s.is_empty(),
@@ -677,11 +726,15 @@ impl Repr {
         match self {
             Self::Empty => "",
             // Safety: this is guaranteed by the user when creating the `FastStr`.
-            Self::Bytes(bytes) => unsafe { core::str::from_utf8_unchecked(bytes) },
+            Self::Bytes(bytes) => unsafe {
+                core::str::from_utf8_unchecked(core::slice::from_raw_parts(bytes.ptr, bytes.len))
+            },
             Self::ArcStr(arc_str) => arc_str,
             Self::ArcString(arc_string) => arc_string,
             Self::StaticStr(s) => s,
-            Self::Inline { len, buf } => unsafe { core::str::from_utf8_unchecked(&buf[..*len]) },
+            Self::Inline { len, buf } => unsafe {
+                core::str::from_utf8_unchecked(&buf[..*len as usize])
+            },
         }
     }
 
@@ -690,14 +743,17 @@ impl Repr {
     fn into_string(self) -> String {
         match self {
             Self::Empty => String::new(),
-            Self::Bytes(bytes) => unsafe { String::from_utf8_unchecked(bytes.into()) },
+            Self::Bytes(bytes_ref) => {
+                // Safety: this is guaranteed by the user when creating the `FastStr`.
+                unsafe { String::from_utf8_unchecked(Into::<Bytes>::into(bytes_ref).into()) }
+            }
             Self::ArcStr(arc_str) => arc_str.to_string(),
             Self::ArcString(arc_string) => {
                 Arc::try_unwrap(arc_string).unwrap_or_else(|arc| (*arc).clone())
             }
             Self::StaticStr(s) => s.to_string(),
             Self::Inline { len, buf } => unsafe {
-                String::from_utf8_unchecked(buf[..len].to_vec())
+                String::from_utf8_unchecked(buf[..len as usize].to_vec())
             },
         }
     }
@@ -706,13 +762,13 @@ impl Repr {
     fn into_bytes(self) -> Bytes {
         match self {
             Self::Empty => Bytes::new(),
-            Self::Bytes(bytes) => bytes,
+            Self::Bytes(bytes) => bytes.into(),
             Self::ArcStr(arc_str) => Bytes::from(arc_str.as_bytes().to_vec()),
             Self::ArcString(arc_string) => {
                 Bytes::from(Arc::try_unwrap(arc_string).unwrap_or_else(|arc| (*arc).clone()))
             }
             Self::StaticStr(s) => Bytes::from_static(s.as_bytes()),
-            Self::Inline { len, buf } => Bytes::from(buf[..len].to_vec()),
+            Self::Inline { len, buf } => Bytes::from(buf[..len as usize].to_vec()),
         }
     }
 
@@ -721,7 +777,7 @@ impl Repr {
         match self {
             Self::Empty => Self::Empty,
             // Safety: this is guaranteed by the user when creating the `FastStr`.
-            Self::Bytes(bytes) => unsafe { Self::new(core::str::from_utf8_unchecked(bytes)) },
+            Self::Bytes(bytes) => unsafe { Self::new(core::str::from_utf8_unchecked(&**bytes)) },
             Self::ArcStr(arc_str) => Self::ArcStr(Arc::clone(arc_str)),
             Self::ArcString(arc_string) => Self::ArcString(Arc::clone(arc_string)),
             Self::StaticStr(s) => Self::StaticStr(s),
@@ -761,18 +817,18 @@ impl Repr {
         let sub_offset = sub_p - bytes_p;
         match self {
             Repr::Empty => panic!("invalid slice ref, self is empty but subset is not"),
-            Repr::Bytes(b) => Self::Bytes(b.slice_ref(subset)),
-            Repr::ArcStr(s) => Self::Bytes(Bytes::copy_from_slice(
-                s[sub_offset..sub_offset + sub_len].as_bytes(),
-            )),
-            Repr::ArcString(s) => Self::Bytes(Bytes::copy_from_slice(
-                s[sub_offset..sub_offset + sub_len].as_bytes(),
-            )),
+            Repr::Bytes(b) => Self::Bytes(unsafe { b.slice_ref(subset) }),
+            Repr::ArcStr(s) => Self::Bytes(
+                Bytes::copy_from_slice(s[sub_offset..sub_offset + sub_len].as_bytes()).into(),
+            ),
+            Repr::ArcString(s) => Self::Bytes(
+                Bytes::copy_from_slice(s[sub_offset..sub_offset + sub_len].as_bytes()).into(),
+            ),
             Repr::StaticStr(s) => Self::StaticStr(unsafe {
                 core::str::from_utf8_unchecked(&s.as_bytes()[sub_offset..sub_offset + sub_len])
             }),
             Repr::Inline { len: _, buf } => Self::Inline {
-                len: sub_len,
+                len: sub_len as ISize,
                 buf: {
                     let mut new_buf = [0; INLINE_CAP];
                     new_buf[..sub_len].copy_from_slice(&buf[sub_offset..sub_offset + sub_len]);
@@ -788,11 +844,11 @@ impl AsRef<[u8]> for Repr {
     fn as_ref(&self) -> &[u8] {
         match self {
             Self::Empty => &[],
-            Self::Bytes(bytes) => bytes.as_ref(),
+            Self::Bytes(bytes) => unsafe { core::slice::from_raw_parts(bytes.ptr, bytes.len) },
             Self::ArcStr(arc_str) => arc_str.as_bytes(),
             Self::ArcString(arc_string) => arc_string.as_bytes(),
             Self::StaticStr(s) => s.as_bytes(),
-            Self::Inline { len, buf } => &buf[..*len],
+            Self::Inline { len, buf } => &buf[..*len as usize],
         }
     }
 }
