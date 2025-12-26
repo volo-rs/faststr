@@ -1,6 +1,7 @@
 use bytes::Bytes;
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion};
 use faststr::FastStr;
+use std::hint::black_box;
 
 fn criterion_benchmark(c: &mut Criterion) {
     let s = FastStr::empty();

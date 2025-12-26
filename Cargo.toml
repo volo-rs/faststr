@@ -1,63 +1,63 @@
 [package]
-name = "faststr"
-version = "0.2.32"
 authors = ["Volo Team <volo@cloudwego.io>"]
-edition = "2021"
 description = "Faststr is a string library that reduces the cost of clone."
-repository = "https://github.com/volo-rs/faststr"
-license = "MIT OR Apache-2.0"
-readme = "README.md"
+edition = "2021"
 keywords = ["string", "str", "volo"]
+license = "MIT OR Apache-2.0"
+name = "faststr"
+readme = "README.md"
+repository = "https://github.com/volo-rs/faststr"
+version = "0.2.33"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bytes = { version = "1", default-features = false }
-serde = { version = "1", optional = true, default-features = false }
-simdutf8 = { version = "0.1", default-features = false, features = [
-    "aarch64_neon",
-] }
-redis = { version = "1.0", optional = true, default-features = false, features = [
-    "num-bigint",
-] }
-itoa = { version = "1", optional = true }
-ryu = { version = "1", optional = true }
-rkyv = { version = "0.8", optional = true, default-features = false }
-sqlx = { version = "0.8", optional = true, default-features = false }
-sqlx-mysql = { version = "0.8", optional = true, default-features = false }
-sqlx-postgres = { version = "0.8.6", optional = true, default-features = false }
-ts-rs = { version = "11", optional = true, default-features = false }
-sea-orm = { version = "1.1", optional = true, default-features = false }
+bytes = {version = "1", default-features = false}
+itoa = {version = "1", optional = true}
+redis = {version = "1.0", optional = true, default-features = false, features = [
+  "num-bigint",
+]}
+rkyv = {version = "0.8", optional = true, default-features = false}
+ryu = {version = "1", optional = true}
+sea-orm = {version = "1.1", optional = true, default-features = false}
+serde = {version = "1", optional = true, default-features = false}
+simdutf8 = {version = "0.1", default-features = false, features = [
+  "aarch64_neon",
+]}
+sqlx = {version = "0.8", optional = true, default-features = false}
+sqlx-mysql = {version = "0.8", optional = true, default-features = false}
+sqlx-postgres = {version = "0.8.6", optional = true, default-features = false}
+ts-rs = {version = "11", optional = true, default-features = false}
 
 [features]
 default = ["std"]
-std = ["bytes/std", "simdutf8/std", "serde?/std", "rkyv?/std"]
-serde = ["serde/alloc"]
-serde-unsafe = ["serde"]
 redis = ["std", "dep:redis", "itoa", "ryu"]
 redis-unsafe = ["redis"]
 rkyv = ["rkyv/alloc"]
+sea-orm = ["std", "dep:sea-orm", "itoa"]
+serde = ["serde/alloc"]
+serde-unsafe = ["serde"]
 sqlx-mysql = ["std", "dep:sqlx", "dep:sqlx-mysql"]
 sqlx-mysql-unsafe = ["sqlx-mysql"]
 sqlx-postgres = ["std", "dep:sqlx", "dep:sqlx-postgres"]
 sqlx-postgres-unsafe = ["sqlx-postgres"]
+std = ["bytes/std", "simdutf8/std", "serde?/std", "rkyv?/std"]
 ts-rs = ["std", "dep:ts-rs"]
-sea-orm = ["std", "dep:sea-orm", "itoa"]
 
 [dev-dependencies]
-static_assertions = { version = "1" }
-criterion = { version = "0.7", features = ["html_reports"] }
+criterion = {version = "0.7", features = ["html_reports"]}
+static_assertions = {version = "1"}
 
 # For sea-orm integration tests
-sea-orm = { version = "1.1", features = ["macros", "mock"] }
-tokio = { version = "1", features = ["rt", "macros"] }
+sea-orm = {version = "1.1", features = ["macros", "mock"]}
+tokio = {version = "1", features = ["rt", "macros"]}
 
 [workspace]
 members = [".", "utils"]
 
 [[bench]]
-name = "faststr"
 harness = false
+name = "faststr"
 
 [profile.bench]
 debug = true
