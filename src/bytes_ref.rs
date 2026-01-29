@@ -1,6 +1,6 @@
-use core::{ops::Deref, slice};
+use core::{mem, ops::Deref, slice};
 
-use alloc::sync::Arc;
+use alloc::{sync::Arc, vec::Vec};
 
 use bytes::{Buf, Bytes};
 
@@ -42,7 +42,22 @@ impl From<BytesRef> for Bytes {
     }
 }
 
+impl From<BytesRef> for Vec<u8> {
+    #[inline]
+    fn from(value: BytesRef) -> Self {
+        Bytes::from(value).into()
+    }
+}
+
 impl BytesRef {
+    fn new_empty(&self) -> Self {
+        Self {
+            ptr: self.ptr,
+            len: 0,
+            data: self.data.clone(),
+        }
+    }
+
     /// Create a new borrowed “view” from this `BytesRef`, pointing to `subset`.
     ///
     /// This does not copy any bytes. It reuses the underlying `Arc<Bytes>` to keep
@@ -78,10 +93,13 @@ impl BytesRef {
         self.ptr = self.ptr.add(by);
     }
 
-    pub fn split_to(&mut self, at: usize) -> Bytes {
+    pub fn split_to(&mut self, at: usize) -> Self {
+        if at == self.len() {
+            return mem::replace(self, self.new_empty());
+        }
+
         if at == 0 {
-            // TODO: provenance?
-            return Bytes::new();
+            return self.new_empty();
         }
 
         assert!(
@@ -91,12 +109,11 @@ impl BytesRef {
             self.len(),
         );
 
-        let original_start = self.data.as_ptr();
-        let offset = unsafe { self.ptr.offset_from(original_start) } as usize;
-        let ret = self.data.slice(offset..offset + at);
+        let mut ret = self.clone();
 
         unsafe { self.inc_start(at) };
 
+        ret.len = at;
         ret
     }
 }
@@ -133,5 +150,9 @@ impl Buf for BytesRef {
         unsafe {
             self.inc_start(cnt);
         }
+    }
+
+    fn copy_to_bytes(&mut self, len: usize) -> Bytes {
+        self.split_to(len).into()
     }
 }

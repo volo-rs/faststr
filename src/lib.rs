@@ -726,9 +726,7 @@ impl Repr {
         match self {
             Self::Empty => "",
             // Safety: this is guaranteed by the user when creating the `FastStr`.
-            Self::Bytes(bytes) => unsafe {
-                core::str::from_utf8_unchecked(core::slice::from_raw_parts(bytes.ptr, bytes.len))
-            },
+            Self::Bytes(bytes) => unsafe { core::str::from_utf8_unchecked(bytes) },
             Self::ArcStr(arc_str) => arc_str,
             Self::ArcString(arc_string) => arc_string,
             Self::StaticStr(s) => s,
@@ -745,7 +743,7 @@ impl Repr {
             Self::Empty => String::new(),
             Self::Bytes(bytes_ref) => {
                 // Safety: this is guaranteed by the user when creating the `FastStr`.
-                unsafe { String::from_utf8_unchecked(Into::<Bytes>::into(bytes_ref).into()) }
+                unsafe { String::from_utf8_unchecked(bytes_ref.into()) }
             }
             Self::ArcStr(arc_str) => arc_str.to_string(),
             Self::ArcString(arc_string) => {
@@ -777,7 +775,7 @@ impl Repr {
         match self {
             Self::Empty => Self::Empty,
             // Safety: this is guaranteed by the user when creating the `FastStr`.
-            Self::Bytes(bytes) => unsafe { Self::new(core::str::from_utf8_unchecked(&**bytes)) },
+            Self::Bytes(bytes) => unsafe { Self::new(core::str::from_utf8_unchecked(bytes)) },
             Self::ArcStr(arc_str) => Self::ArcStr(Arc::clone(arc_str)),
             Self::ArcString(arc_string) => Self::ArcString(Arc::clone(arc_string)),
             Self::StaticStr(s) => Self::StaticStr(s),
@@ -844,7 +842,7 @@ impl AsRef<[u8]> for Repr {
     fn as_ref(&self) -> &[u8] {
         match self {
             Self::Empty => &[],
-            Self::Bytes(bytes) => unsafe { core::slice::from_raw_parts(bytes.ptr, bytes.len) },
+            Self::Bytes(bytes) => bytes,
             Self::ArcStr(arc_str) => arc_str.as_bytes(),
             Self::ArcString(arc_string) => arc_string.as_bytes(),
             Self::StaticStr(s) => s.as_bytes(),
